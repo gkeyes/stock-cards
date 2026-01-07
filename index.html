@@ -247,7 +247,13 @@
       background: rgba(239,68,68,.08);
     }
 
-    .price-row{
+    /* Manual reordering mode */
+    .tool.sort-only{ display:none; }
+    body.sort-mode .tool.sort-only{ display:inline-flex; }
+    body.sort-mode .card-tools .tool:not(.sort-only){ display:none; }
+    body.sort-mode .card{ border-style: dashed; border-color: rgba(59,130,246,.30); }
+
+.price-row{
       display:flex;
       align-items:flex-end;
       justify-content:space-between;
@@ -548,6 +554,7 @@
           全部更新
         </span>
       </button>
+      <button class="btn blue" id="btnSort" type="button">排序</button>
       <button class="btn blue" id="btnAdd" type="button">+ 添加</button>
     </div>
   </div>
@@ -851,6 +858,18 @@
                 <p class="small">${sub}</p>
               </div>
               <div class="card-tools">
+                <button class="tool sort-only" data-act="moveUp" data-id="${it.id}" aria-label="Move Up" title="上移">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19V5"></path>
+                    <path d="M6 11l6-6 6 6"></path>
+                  </svg>
+                </button>
+                <button class="tool sort-only" data-act="moveDown" data-id="${it.id}" aria-label="Move Down" title="下移">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14"></path>
+                    <path d="M18 13l-6 6-6-6"></path>
+                  </svg>
+                </button>
                 <button class="tool" data-act="edit" data-id="${it.id}" aria-label="Edit" title="编辑">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 20h9"></path>
@@ -940,6 +959,21 @@
       const id = btn.dataset.id;
       if(!act || !id) return;
 
+      if(act === "moveUp" || act === "moveDown"){
+        const idx = items.findIndex(x => x.id === id);
+        if(idx < 0) return;
+
+        const to = (act === "moveUp") ? Math.max(0, idx - 1) : Math.min(items.length - 1, idx + 1);
+        if(to === idx) return;
+
+        const [moved] = items.splice(idx, 1);
+        items.splice(to, 0, moved);
+        persist();
+        render();
+        return;
+      }
+
+
       if(act === "del"){
         items = items.filter(x => x.id !== id);
         persist();
@@ -963,6 +997,17 @@
     document.getElementById("btnUpdateAll").addEventListener("click", async () => {
       await updateAllPrices();
     });
+
+    // ---------- Manual reordering ----------
+    let sortMode = false;
+    function setSortMode(on){
+      sortMode = !!on;
+      document.body.classList.toggle("sort-mode", sortMode);
+      const btn = document.getElementById("btnSort");
+      if(btn) btn.textContent = sortMode ? "完成" : "排序";
+      if(sortMode) toast("排序模式：用 ↑/↓ 调整卡片顺序");
+    }
+    document.getElementById("btnSort").addEventListener("click", () => setSortMode(!sortMode));
 
     document.getElementById("btnAdd").addEventListener("click", () => openModal("add"));
     // ---------- Modal logic ----------
