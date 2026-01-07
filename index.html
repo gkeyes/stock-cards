@@ -265,6 +265,8 @@
       cursor:pointer;
     }
     .tool:active{ transform: translateY(1px); }
+    .header-gear{ width: 36px; height: 36px; border-radius: 14px; }
+    .header-gear svg{ width: 18px; height: 18px; }
     .tool.danger{
       border-color: rgba(239,68,68,.25);
       background: rgba(239,68,68,.08);
@@ -587,7 +589,13 @@
       </button>
       <button class="btn blue" id="btnSort" type="button">排序</button>
       <button class="btn blue" id="btnAdd" type="button">+ 添加</button>
-    </div>
+          <button class="tool header-gear" id="btnIO" type="button" aria-label="数据导入导出" title="数据导入/导出">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"></path>
+          <path d="M19.5 12a7.5 7.5 0 0 0-.06-.93l1.7-1.32-1.5-2.6-2 .8a7.53 7.53 0 0 0-1.61-.93l-.3-2.13H8.27l-.3 2.13c-.57.22-1.11.53-1.61.93l-2-.8-1.5 2.6 1.7 1.32A7.5 7.5 0 0 0 4.5 12c0 .31.02.62.06.93l-1.7 1.32 1.5 2.6 2-.8c.5.4 1.04.71 1.61.93l.3 2.13h5.46l.3-2.13c.57-.22 1.11-.53 1.61-.93l2 .8 1.5-2.6-1.7-1.32c.04-.31.06-.62.06-.93Z"></path>
+        </svg>
+      </button>
+</div>
   </div>
     </div>
 
@@ -622,7 +630,7 @@
             <input id="fSupport" inputmode="decimal" placeholder="14.00" />
           </div>
           <div class="field">
-            <label>突破位（可选）</label>
+            <label>突破位</label>
             <input id="fBreakout" inputmode="decimal" placeholder="16.00" />
           </div>
           <div class="field">
@@ -642,13 +650,39 @@
       </div>
     </div>
   </div>
+  <!-- Import/Export Overlay -->
+  <div class="overlay" id="ioOverlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-hd">
+        <h3>数据管理</h3>
+        <button class="tool" id="btnIOClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-bd">
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+          <button class="btn blue" id="btnExport" type="button">导出</button>
+          <button class="btn green" id="btnImport" type="button">导入</button>
+        </div>
+        <input id="ioFile" type="file" accept="application/json,.json" style="display:none" />
+        <div style="margin-top:10px;color:var(--muted);font-size:12px;line-height:1.5;">
+          导出会下载 JSON 文件；导入会覆盖当前股票列表（本地缓存）。
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <script>
     // ---------- Data Layer ----------
     const LS_KEY = "strategy_cards_frontend_only_v3";
     const LS_DRAFT_KEY = "strategy_cards_form_draft_v2";
 
-    /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:(number|null), tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
+    /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:number, tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
     let items = load() ?? [];
 
     items = migrateItems(items);
@@ -670,10 +704,10 @@
       if(!Array.isArray(arr)) return [];
       return arr.map((x) => {
         const it = (x && typeof x === "object") ? x : {};
-        // Field: breakout (optional). If missing/invalid, keep as null.
+        // Add new field: breakout. If missing, default to support (best-effort).
         const support = Number(it.support);
-        const breakoutRaw = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? null : Number(it.breakout);
-        const breakout = Number.isFinite(breakoutRaw) ? breakoutRaw : null;
+        const breakout = Number.isFinite(Number(it.breakout)) ? Number(it.breakout) :
+                         (Number.isFinite(support) ? support : 0);
         const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? null : Number(it.tp2);
         return {
           ...it,
@@ -866,9 +900,7 @@
 
       items.forEach((it) => {
         const hasTp2 = Number.isFinite(it.tp2);
-        const hasBreakout = Number.isFinite(it.breakout);
-        const pillCount = 3 + (hasBreakout ? 1 : 0) + (hasTp2 ? 1 : 0);
-        const colsClass = (pillCount === 3) ? "cols-3" : (pillCount === 4) ? "cols-4" : "cols-5";
+        const colsClass = hasTp2 ? "cols-5" : "cols-4";
         const prev = Number(it.prevClose);
         const cur = Number(it.price);
         let priceDirClass = "flat";
@@ -978,16 +1010,15 @@
                 <div class="k">支撑</div>
                 <div class="v">${formatCNY(it.support)}</div>
               </div>
-              ${hasBreakout ? `
               <div class="pill blue">
                 <div class="k">突破位</div>
                 <div class="v">${formatCNY(it.breakout)}</div>
-              </div>` : ``}
+              </div>
               <div class="pill green">
                 <div class="k">止盈1</div>
                 <div class="v">${formatCNY(it.tp1)}</div>
               </div>
-              ${hasTp2 ? `
+              ${Number.isFinite(it.tp2) ? `
               <div class="pill green">
                 <div class="k">止盈2</div>
                 <div class="v">${formatCNY(it.tp2)}</div>
@@ -1064,6 +1095,125 @@
     document.getElementById("btnSort").addEventListener("click", () => setSortMode(!sortMode));
 
     document.getElementById("btnAdd").addEventListener("click", () => openModal("add"));
+
+    // ---------- Import / Export (local JSON) ----------
+    const ioOverlay = document.getElementById("ioOverlay");
+    const btnIO = document.getElementById("btnIO");
+    const btnIOClose = document.getElementById("btnIOClose");
+    const ioFile = document.getElementById("ioFile");
+    const btnExport = document.getElementById("btnExport");
+    const btnImport = document.getElementById("btnImport");
+
+    function openIO(){
+      if(!ioOverlay) return;
+      ioOverlay.classList.add("show");
+      ioOverlay.setAttribute("aria-hidden","false");
+    }
+    function closeIO(){
+      if(!ioOverlay) return;
+      ioOverlay.classList.remove("show");
+      ioOverlay.setAttribute("aria-hidden","true");
+      if(ioFile) ioFile.value = "";
+    }
+
+    if(btnIO) btnIO.addEventListener("click", openIO);
+    if(btnIOClose) btnIOClose.addEventListener("click", closeIO);
+    if(ioOverlay){
+      ioOverlay.addEventListener("click", (e) => { if(e.target === ioOverlay) closeIO(); });
+    }
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && ioOverlay && ioOverlay.classList.contains("show")) closeIO();
+    });
+
+    function downloadJSON(filename, obj){
+      const s = JSON.stringify(obj, null, 2);
+      const blob = new Blob([s], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    }
+
+    function safeNum(v){
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    function genId(){
+      // Best-effort unique id without external deps
+      try{
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      }catch(_){}
+      return "id_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
+    }
+
+    function normalizeImportedItems(arr){
+      if(!Array.isArray(arr)) throw new Error("INVALID_FORMAT");
+      return arr.map((o) => {
+        const symbol = String((o && o.symbol) || "").trim();
+        if(!symbol) throw new Error("MISSING_SYMBOL");
+        return {
+          id: String((o && o.id) || genId()),
+          symbol,
+          name: (o && o.name) ? String(o.name) : "",
+          stop: safeNum(o && o.stop),
+          support: safeNum(o && o.support),
+          breakout: (o && (o.breakout !== undefined) && (o.breakout !== "") && (o.breakout !== null)) ? safeNum(o.breakout) : null,
+          tp1: safeNum(o && o.tp1),
+          tp2: (o && (o.tp2 !== undefined) && (o.tp2 !== "") && (o.tp2 !== null)) ? safeNum(o.tp2) : null,
+          // runtime fields (best-effort defaults)
+          price: safeNum(o && o.price) ?? 0,
+          prevClose: safeNum(o && o.prevClose) ?? 0,
+          open: safeNum(o && o.open) ?? 0,
+          high: safeNum(o && o.high) ?? 0,
+          low: safeNum(o && o.low) ?? 0,
+          avgPrice: safeNum(o && o.avgPrice) ?? 0,
+          volRatio: safeNum(o && o.volRatio) ?? 0,
+          status: (o && o.status) ? String(o.status) : "监控中",
+          updatedAt: (o && o.updatedAt) ? String(o.updatedAt) : ""
+        };
+      });
+    }
+
+    if(btnExport){
+      btnExport.addEventListener("click", () => {
+        const filename = "stock-cards.json";
+        downloadJSON(filename, items);
+        toast("已导出 JSON");
+      });
+    }
+
+    if(btnImport){
+      btnImport.addEventListener("click", () => {
+        if(ioFile) ioFile.click();
+      });
+    }
+
+    if(ioFile){
+      ioFile.addEventListener("change", async () => {
+        const f = ioFile.files && ioFile.files[0];
+        if(!f) return;
+        try{
+          const txt = await f.text();
+          const obj = JSON.parse(txt);
+          const imported = normalizeImportedItems(obj);
+          const ok = window.confirm(`确认导入 ${imported.length} 条记录？\n将覆盖当前本地股票列表。`);
+          if(!ok) return;
+
+          items = imported;
+          persist();
+          render();
+          toast("导入成功");
+          closeIO();
+        }catch(err){
+          console.error(err);
+          toast("导入失败：文件格式不正确");
+        }
+      });
+    }
     // ---------- Modal logic ----------
     const overlay = document.getElementById("overlay");
     const modalTitle = document.getElementById("modalTitle");
@@ -1151,7 +1301,7 @@
       const symbol = fSymbol.value.trim();
       const stop = parseNum(fStop.value);
       const support = parseNum(fSupport.value);
-      const breakout = parseOptionalNum(fBreakout.value);
+      const breakout = parseNum(fBreakout.value);
       const tp1 = parseNum(fTp1.value);
       const tp2 = parseOptionalNum(fTp2.value);
 
@@ -1160,12 +1310,8 @@
         fSymbol.focus();
         return;
       }
-      if(!Number.isFinite(stop) || !Number.isFinite(support) || !Number.isFinite(tp1)){
-        toast("止损/支撑/止盈1 请输入有效数字");
-        return;
-      }
-      if(breakout !== null && !Number.isFinite(breakout)){
-        toast("突破位 请输入有效数字或留空");
+      if(!Number.isFinite(stop) || !Number.isFinite(support) || !Number.isFinite(breakout) || !Number.isFinite(tp1)){
+        toast("止损/支撑/突破位/止盈1 请输入有效数字");
         return;
       }
       if(tp2 !== null && !Number.isFinite(tp2)){
@@ -1258,11 +1404,11 @@
           it.updatedAt = q.time || nowTime();
           it.name = q.name || it.name;
 
-          // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout(如填写) => 已突破; else 监控中
+          // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout => 已突破; else 监控中
           if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
           else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
           else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-          else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
+          else if (Number(it.price) >= Number(it.breakout)) it.status = "已突破";
           else it.status = "监控中";
         }
 
@@ -1304,7 +1450,7 @@
         if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
         else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
         else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-        else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
+        else if (Number(it.price) >= Number(it.breakout)) it.status = "已突破";
         else it.status = "监控中";
       }catch(e){
         it.status = "更新失败";
