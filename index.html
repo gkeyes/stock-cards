@@ -19,6 +19,8 @@
       --blue: #3b82f6;
       --red: #ef4444;
 
+
+      --green-deep: #0b7a2b;
       --pill-red-bg: rgba(239,68,68,.10);
       --pill-amber-bg: rgba(245,158,11,.12);
       --pill-green-bg: rgba(16,185,129,.12);
@@ -256,9 +258,22 @@
       margin:0;
       font-size: 26px;
       font-weight: 950;
-      color: var(--red);
+      color: var(--text);
       letter-spacing: .2px;
       line-height: 1;
+    }
+
+    .price-left .price .price-value{
+      color: var(--text);
+    }
+    .price-left .price .price-value.up{
+      color: var(--red);
+    }
+    .price-left .price .price-value.down{
+      color: var(--green-deep);
+    }
+    .price-left .price .price-value.flat{
+      color: var(--text);
     }
     .refresh-mini{
       width: 32px;
@@ -651,6 +666,10 @@
       }
       if(!Number.isFinite(price)) throw new Error(`bad price for ${marketCode}`);
 
+      // prev close usually at index 4
+      let prevClose = Number(parts[4]);
+      if(!Number.isFinite(prevClose)) prevClose = NaN;
+
       // datetime: find 14-digit token (YYYYMMDDhhmmss)
       let timeStr = "";
       for(const t of parts){
@@ -664,7 +683,7 @@
       }
       if(!timeStr) timeStr = nowTime();
 
-      return { marketCode, code6, name, price, time: timeStr };
+      return { marketCode, code6, name, price, prevClose, time: timeStr };
     }
 
     async function fetchTencentBatch(marketCodes){
@@ -712,6 +731,13 @@
       items.forEach((it) => {
         const hasTp2 = Number.isFinite(it.tp2);
         const colsClass = hasTp2 ? "cols-5" : "cols-4";
+        const prev = Number(it.prevClose);
+        const cur = Number(it.price);
+        let priceDirClass = "flat";
+        if(Number.isFinite(prev) && Number.isFinite(cur)){
+          if(cur > prev) priceDirClass = "up";
+          else if(cur < prev) priceDirClass = "down";
+        }
 
         const card = document.createElement("div");
         card.className = "card";
@@ -749,7 +775,7 @@
               <div class="price-left">
                 <div class="label">当前价格</div>
                 <div class="price">
-                  ${formatCNY(it.price)}
+                  <span class="price-value ${priceDirClass}">${formatCNY(it.price)}</span>
                   <button class="refresh-mini" data-act="refresh" data-id="${it.id}" aria-label="Refresh" title="更新">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
@@ -1007,6 +1033,8 @@
           }
 
           it.price = q.price;
+        it.prevClose = q.prevClose;
+          it.prevClose = q.prevClose;
           it.updatedAt = q.time || nowTime();
           it.name = q.name || it.name;
 
