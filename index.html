@@ -415,25 +415,33 @@
     .pill{
       display:flex;
       flex-direction:column;
-      gap: 3px;
-      padding: 8px 10px;
+      gap: 2px;
+      padding: 7px 10px;
       border-radius: 14px;
       min-width: 0;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
     }
     .pill .k{
-      font-size: 12px;
+      font-size: clamp(12px, 2.6vw, 15px);
       font-weight: 850;
+      line-height: 1.05;
       overflow:hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .pill .v{
-      font-size: 14px;
+      font-size: clamp(14px, 3.3vw, 20px);
       font-weight: 950;
       letter-spacing: .2px;
+      line-height: 1.05;
       overflow:hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .pills.cols-5 .pill .v{
+      font-size: clamp(13px, 3.0vw, 18px);
     }
     .pill.red{ background: var(--pill-red-bg); color: var(--pill-red-text); }
     .pill.amber{ background: var(--pill-amber-bg); color: var(--pill-amber-text); }
@@ -614,7 +622,7 @@
             <input id="fSupport" inputmode="decimal" placeholder="14.00" />
           </div>
           <div class="field">
-            <label>突破位</label>
+            <label>突破位（可选）</label>
             <input id="fBreakout" inputmode="decimal" placeholder="16.00" />
           </div>
           <div class="field">
@@ -640,7 +648,7 @@
     const LS_KEY = "strategy_cards_frontend_only_v3";
     const LS_DRAFT_KEY = "strategy_cards_form_draft_v2";
 
-    /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:number, tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
+    /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:(number|null), tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
     let items = load() ?? [];
 
     items = migrateItems(items);
@@ -662,10 +670,10 @@
       if(!Array.isArray(arr)) return [];
       return arr.map((x) => {
         const it = (x && typeof x === "object") ? x : {};
-        // Add new field: breakout. If missing, default to support (best-effort).
+        // Field: breakout (optional). If missing/invalid, keep as null.
         const support = Number(it.support);
-        const breakout = Number.isFinite(Number(it.breakout)) ? Number(it.breakout) :
-                         (Number.isFinite(support) ? support : 0);
+        const breakoutRaw = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? null : Number(it.breakout);
+        const breakout = Number.isFinite(breakoutRaw) ? breakoutRaw : null;
         const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? null : Number(it.tp2);
         return {
           ...it,
@@ -858,7 +866,9 @@
 
       items.forEach((it) => {
         const hasTp2 = Number.isFinite(it.tp2);
-        const colsClass = hasTp2 ? "cols-5" : "cols-4";
+        const hasBreakout = Number.isFinite(it.breakout);
+        const pillCount = 3 + (hasBreakout ? 1 : 0) + (hasTp2 ? 1 : 0);
+        const colsClass = (pillCount === 3) ? "cols-3" : (pillCount === 4) ? "cols-4" : "cols-5";
         const prev = Number(it.prevClose);
         const cur = Number(it.price);
         let priceDirClass = "flat";
@@ -968,15 +978,16 @@
                 <div class="k">支撑</div>
                 <div class="v">${formatCNY(it.support)}</div>
               </div>
+              ${hasBreakout ? `
               <div class="pill blue">
                 <div class="k">突破位</div>
                 <div class="v">${formatCNY(it.breakout)}</div>
-              </div>
+              </div>` : ``}
               <div class="pill green">
                 <div class="k">止盈1</div>
                 <div class="v">${formatCNY(it.tp1)}</div>
               </div>
-              ${Number.isFinite(it.tp2) ? `
+              ${hasTp2 ? `
               <div class="pill green">
                 <div class="k">止盈2</div>
                 <div class="v">${formatCNY(it.tp2)}</div>
@@ -1140,7 +1151,7 @@
       const symbol = fSymbol.value.trim();
       const stop = parseNum(fStop.value);
       const support = parseNum(fSupport.value);
-      const breakout = parseNum(fBreakout.value);
+      const breakout = parseOptionalNum(fBreakout.value);
       const tp1 = parseNum(fTp1.value);
       const tp2 = parseOptionalNum(fTp2.value);
 
@@ -1149,8 +1160,12 @@
         fSymbol.focus();
         return;
       }
-      if(!Number.isFinite(stop) || !Number.isFinite(support) || !Number.isFinite(breakout) || !Number.isFinite(tp1)){
-        toast("止损/支撑/突破位/止盈1 请输入有效数字");
+      if(!Number.isFinite(stop) || !Number.isFinite(support) || !Number.isFinite(tp1)){
+        toast("止损/支撑/止盈1 请输入有效数字");
+        return;
+      }
+      if(breakout !== null && !Number.isFinite(breakout)){
+        toast("突破位 请输入有效数字或留空");
         return;
       }
       if(tp2 !== null && !Number.isFinite(tp2)){
@@ -1243,11 +1258,11 @@
           it.updatedAt = q.time || nowTime();
           it.name = q.name || it.name;
 
-          // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout => 已突破; else 监控中
+          // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout(如填写) => 已突破; else 监控中
           if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
           else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
           else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-          else if (Number(it.price) >= Number(it.breakout)) it.status = "已突破";
+          else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
           else it.status = "监控中";
         }
 
@@ -1289,7 +1304,7 @@
         if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
         else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
         else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-        else if (Number(it.price) >= Number(it.breakout)) it.status = "已突破";
+        else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
         else it.status = "监控中";
       }catch(e){
         it.status = "更新失败";
