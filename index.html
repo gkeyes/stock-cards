@@ -288,7 +288,49 @@
     }
     .refresh-mini:active{ transform: translateY(1px); }
 
-    .price-right{
+    
+    .price-mid{
+      flex: 1 1 auto;
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 14px;
+      align-content:start;
+      padding: 2px 4px 0 4px;
+      min-width: 0;
+    }
+    .metric{
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .metric .m-label{
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .metric .m-val{
+      font-size: 13px;
+      font-weight: 850;
+      color: var(--text);
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (max-width: 420px){
+      .price-mid{
+        gap: 7px 10px;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .metric .m-val{ font-size: 12.5px; }
+    }
+
+.price-right{
       text-align:right;
       min-width: 96px;
     }
@@ -622,6 +664,17 @@
       return "¥" + x.toFixed(2);
     }
 
+    function formatMaybeCNY(n){
+      const x = Number(n);
+      if(!Number.isFinite(x)) return "--";
+      return "¥" + x.toFixed(2);
+    }
+    function formatRatio(x){
+      const n = Number(x);
+      if(!Number.isFinite(n)) return "--";
+      return (Math.round(n*100)/100).toFixed(2);
+    }
+
     // ---------- Quote API (Pure Frontend via script injection) ----------
     function toTencentMarketCode(symbol){
       const s = String(symbol).trim();
@@ -664,11 +717,35 @@
           if(Number.isFinite(x) && x > 0) { price = x; break; }
         }
       }
-      if(!Number.isFinite(price)) throw new Error(`bad price for ${marketCode}`);
+      if(!Number.isFinite(price) || price <= 0) throw new Error(`bad price for ${marketCode}`);
 
-      // prev close usually at index 4
+      // best-effort mapping (may vary by instrument)
       let prevClose = Number(parts[4]);
       if(!Number.isFinite(prevClose)) prevClose = NaN;
+
+      let open = Number(parts[5]);
+      if(!Number.isFinite(open)) open = NaN;
+
+      let high = Number(parts[33]);
+      let low  = Number(parts[34]);
+      if(!Number.isFinite(high)) high = Math.max(price, open, prevClose);
+      if(!Number.isFinite(low))  low  = Math.min(price, open, prevClose);
+
+      let volRatio = Number(parts[49]);
+      if(!Number.isFinite(volRatio)) volRatio = NaN;
+
+      // avg price: prefer explicit field, else compute from amount/volume
+      let avgPrice = Number(parts[51]);
+      if(!Number.isFinite(avgPrice) || avgPrice <= 0){
+        const volHand = Number(parts[36]);   // 成交量(手) in some mappings
+        const amtWan  = Number(parts[37]);   // 成交额(万) in some mappings
+        const v = (Number.isFinite(volHand) && volHand > 0) ? volHand : Number(parts[6]);
+        if(Number.isFinite(amtWan) && Number.isFinite(v) && v > 0){
+          avgPrice = (amtWan * 100) / v; // yuan/share
+        }else{
+          avgPrice = NaN;
+        }
+      }
 
       // datetime: find 14-digit token (YYYYMMDDhhmmss)
       let timeStr = "";
@@ -683,7 +760,7 @@
       }
       if(!timeStr) timeStr = nowTime();
 
-      return { marketCode, code6, name, price, prevClose, time: timeStr };
+      return { marketCode, code6, name, price, prevClose, open, high, low, avgPrice, volRatio, time: timeStr };
     }
 
     async function fetchTencentBatch(marketCodes){
@@ -785,6 +862,15 @@
                     </svg>
                   </button>
                 </div>
+              </div>
+
+              <div class="price-mid">
+                <div class="metric"><div class="m-label">今开</div><div class="m-val">${formatMaybeCNY(it.open)}</div></div>
+                <div class="metric"><div class="m-label">昨收</div><div class="m-val">${formatMaybeCNY(it.prevClose)}</div></div>
+                <div class="metric"><div class="m-label">最高</div><div class="m-val">${formatMaybeCNY(it.high)}</div></div>
+                <div class="metric"><div class="m-label">最低</div><div class="m-val">${formatMaybeCNY(it.low)}</div></div>
+                <div class="metric"><div class="m-label">均价</div><div class="m-val">${formatMaybeCNY(it.avgPrice)}</div></div>
+                <div class="metric"><div class="m-label">量比</div><div class="m-val">${formatRatio(it.volRatio)}</div></div>
               </div>
 
               <div class="price-right">
@@ -974,7 +1060,13 @@
           price: 0.00,
           status: "监控中",
           updatedAt: "--:--:--",
-          stop, support, breakout, tp1, tp2
+          stop, support, breakout, tp1, tp2,
+          prevClose: NaN,
+          open: NaN,
+          high: NaN,
+          low: NaN,
+          avgPrice: NaN,
+          volRatio: NaN
         };
         items.unshift(it);
       }else{
@@ -1033,8 +1125,12 @@
           }
 
           it.price = q.price;
-        it.prevClose = q.prevClose;
           it.prevClose = q.prevClose;
+          it.open = q.open;
+          it.high = q.high;
+          it.low = q.low;
+          it.avgPrice = q.avgPrice;
+          it.volRatio = q.volRatio;
           it.updatedAt = q.time || nowTime();
           it.name = q.name || it.name;
 
@@ -1072,6 +1168,12 @@
         if(!q || q.error) throw new Error(q?.error || "empty quote");
 
         it.price = q.price;
+        it.prevClose = q.prevClose;
+        it.open = q.open;
+        it.high = q.high;
+        it.low = q.low;
+        it.avgPrice = q.avgPrice;
+        it.volRatio = q.volRatio;
         it.updatedAt = q.time || nowTime();
         it.name = q.name || it.name;
 
