@@ -256,7 +256,7 @@
       align-items:center;
       gap: 8px;
       margin:0;
-      font-size: 26px;
+      font-size: 29px;
       font-weight: 950;
       color: var(--text);
       letter-spacing: .2px;
@@ -288,15 +288,20 @@
     }
     .refresh-mini:active{ transform: translateY(1px); }
 
-    
+
     .price-mid{
-      flex: 1 1 auto;
+      flex: 0 1 250px;
+      max-width: 260px;
       display:grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px 14px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px 12px;
       align-content:start;
-      padding: 2px 4px 0 4px;
+      justify-items:start;
+      padding: 0 2px 0 2px;
       min-width: 0;
+      margin-left: auto;       /* push metrics + right block to the right */
+      align-self: flex-start;  /* move to upper area */
+      margin-top: -2px;        /* nudge up slightly for compactness */
     }
     .metric{
       display:flex;
@@ -314,23 +319,26 @@
     }
     .metric .m-val{
       font-size: 13px;
-      font-weight: 850;
+      font-weight: 900;
       color: var(--text);
       line-height: 1.15;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    /* keep right block aligned to top when metrics exists */
+    .price-right{ align-self:flex-start; }
+
     @media (max-width: 420px){
       .price-mid{
-        gap: 7px 10px;
-        padding-left: 0;
-        padding-right: 0;
+        flex-basis: 225px;
+        max-width: 235px;
+        gap: 6px 10px;
       }
       .metric .m-val{ font-size: 12.5px; }
     }
 
-.price-right{
+    .price-right{
       text-align:right;
       min-width: 96px;
     }
@@ -521,7 +529,7 @@
     </div>
 
     <div class="actions actions-side">
-      <button class="btn green" id="btnUpdateAll">
+      <button class="btn green" id="btnUpdateAll" type="button">
         <span style="display:inline-flex;align-items:center;gap:10px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
@@ -532,7 +540,7 @@
           全部更新
         </span>
       </button>
-      <button class="btn blue" id="btnAdd">+ 添加</button>
+      <button class="btn blue" id="btnAdd" type="button">+ 添加</button>
     </div>
   </div>
     </div>
@@ -594,7 +602,7 @@
     const LS_KEY = "strategy_cards_frontend_only_v3";
     const LS_DRAFT_KEY = "strategy_cards_form_draft_v2";
 
-    /** @type {{id:string, symbol:string, price:number, status:string, updatedAt:string, stop:number, support:number, breakout:number, tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
+    /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:number, tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
     let items = load() ?? [];
 
     items = migrateItems(items);
@@ -628,6 +636,12 @@
           breakout: breakout,
           tp1: Number(it.tp1),
           tp2: (Number.isFinite(tp2) ? tp2 : null),
+          prevClose: Number.isFinite(Number(it.prevClose)) ? Number(it.prevClose) : NaN,
+          open: Number.isFinite(Number(it.open)) ? Number(it.open) : NaN,
+          high: Number.isFinite(Number(it.high)) ? Number(it.high) : NaN,
+          low: Number.isFinite(Number(it.low)) ? Number(it.low) : NaN,
+          avgPrice: Number.isFinite(Number(it.avgPrice)) ? Number(it.avgPrice) : NaN,
+          volRatio: Number.isFinite(Number(it.volRatio)) ? Number(it.volRatio) : NaN,
         };
       });
     }
@@ -717,7 +731,7 @@
           if(Number.isFinite(x) && x > 0) { price = x; break; }
         }
       }
-      if(!Number.isFinite(price) || price <= 0) throw new Error(`bad price for ${marketCode}`);
+      if(!Number.isFinite(price)) throw new Error(`bad price for ${marketCode}`);
 
       // best-effort mapping (may vary by instrument)
       let prevClose = Number(parts[4]);
@@ -728,20 +742,19 @@
 
       let high = Number(parts[33]);
       let low  = Number(parts[34]);
-      if(!Number.isFinite(high)) high = Math.max(price, open, prevClose);
-      if(!Number.isFinite(low))  low  = Math.min(price, open, prevClose);
+      if(!Number.isFinite(high)) high = NaN;
+      if(!Number.isFinite(low))  low  = NaN;
 
       let volRatio = Number(parts[49]);
       if(!Number.isFinite(volRatio)) volRatio = NaN;
 
-      // avg price: prefer explicit field, else compute from amount/volume
+      // avg price: prefer explicit field, else compute from amount/volume (best-effort)
       let avgPrice = Number(parts[51]);
       if(!Number.isFinite(avgPrice) || avgPrice <= 0){
-        const volHand = Number(parts[36]);   // 成交量(手) in some mappings
-        const amtWan  = Number(parts[37]);   // 成交额(万) in some mappings
-        const v = (Number.isFinite(volHand) && volHand > 0) ? volHand : Number(parts[6]);
-        if(Number.isFinite(amtWan) && Number.isFinite(v) && v > 0){
-          avgPrice = (amtWan * 100) / v; // yuan/share
+        const volHand = Number(parts[36]);
+        const amtWan  = Number(parts[37]);
+        if(Number.isFinite(volHand) && volHand > 0 && Number.isFinite(amtWan)){
+          avgPrice = (amtWan * 100) / volHand; // yuan/share
         }else{
           avgPrice = NaN;
         }
@@ -1058,15 +1071,15 @@
           id: crypto.randomUUID(),
           symbol,
           price: 0.00,
-          status: "监控中",
-          updatedAt: "--:--:--",
-          stop, support, breakout, tp1, tp2,
           prevClose: NaN,
           open: NaN,
           high: NaN,
           low: NaN,
           avgPrice: NaN,
-          volRatio: NaN
+          volRatio: NaN,
+          status: "监控中",
+          updatedAt: "--:--:--",
+          stop, support, breakout, tp1, tp2
         };
         items.unshift(it);
       }else{
