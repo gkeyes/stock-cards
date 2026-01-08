@@ -1484,13 +1484,13 @@
       }
     }
 
-    // ---------- 15s auto refresh ----------
+    // ---------- 5s auto refresh ----------
     let timer = null;
     function startAutoRefresh(){
       if(timer) clearInterval(timer);
       timer = setInterval(() => {
         if (document.visibilityState === "visible") updateAllPrices();
-      }, 15000);
+      }, 5000);
     }
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") updateAllPrices();
