@@ -477,6 +477,23 @@
       font-size: 16px;
       font-weight: 900;
     }
+
+    /* Threshold alert title: colored status tag */
+    #alertTitle{
+      display:flex;
+      align-items:baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #alertTitle .alert-tag{
+      font-weight: 950;
+      letter-spacing: .1px;
+      white-space: nowrap;
+    }
+    #alertTitle .alert-stop{ color: var(--pill-red-text); }
+    #alertTitle .alert-breakout{ color: var(--pill-blue-text); }
+    #alertTitle .alert-tp1{ color: var(--pill-green-text); }
+    #alertTitle .alert-tp2{ color: var(--pill-green-text); }
     .modal-bd{
       padding: 14px 16px 6px 16px;
     }
@@ -1260,14 +1277,14 @@
     }
 
 
-    // ---------- Threshold Alerts (Stop-loss / Breakout) ----------
+    // ---------- Threshold Alerts (Stop-loss / Breakout / Take-profit) ----------
     const LS_ALERTS_KEY = "strategy_cards_threshold_alerts_v1";
     const LS_ALERT_ACK_KEY = "strategy_cards_threshold_alert_ack_v1";
 
     let alertsEnabled = true;
     try{ alertsEnabled = localStorage.getItem(LS_ALERTS_KEY) !== "0"; }catch(_){ /* ignore */ }
 
-    /** @type {Record<string, {stop?:string, breakout?:string}>} */
+    /** @type {Record<string, {stop?:string, breakout?:string, tp1?:string, tp2?:string}>} */
     let alertAck = {};
     try{
       alertAck = JSON.parse(localStorage.getItem(LS_ALERT_ACK_KEY) || "{}") || {};
@@ -1297,7 +1314,7 @@
     const alertBody = document.getElementById("alertBody");
     const btnAlertOk = document.getElementById("btnAlertOk");
 
-    /** @type {{id:string, type:"stop"|"breakout", symbol:string, name:string, price:number, level:number}[]} */
+    /** @type {{id:string, type:"stop"|"breakout"|"tp1"|"tp2", symbol:string, name:string, price:number, level:number}[]} */
     const alertQueue = [];
     const alertLastTs = new Map(); // key: `${id}:${type}:${levelKey}`
     const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -1306,13 +1323,33 @@
 
     function openAlertModal(payload){
       if(!alertOverlay) return;
-      const title = `${payload.name ? payload.name + " " : ""}${payload.symbol}。`;
-      if(alertTitle) alertTitle.textContent = title;
+
+      const baseTitle = `${payload.name ? payload.name + " " : ""}${payload.symbol}`;
+      const statusText =
+        payload.type === "stop" ? "已止损" :
+        payload.type === "tp2"  ? "已止盈2" :
+        payload.type === "tp1"  ? "已止盈1" :
+        "已突破";
+
+      if(alertTitle){
+        alertTitle.textContent = baseTitle;
+        const tag = document.createElement("span");
+        tag.className = `alert-tag alert-${payload.type}`;
+        tag.textContent = statusText;
+        alertTitle.appendChild(document.createTextNode(" "));
+        alertTitle.appendChild(tag);
+      }
+
       const priceStr = formatCNY(payload.price);
       const levelStr = formatCNY(payload.level);
-      const which = payload.type === "stop" ? "止损位" : "突破位";
+      const which =
+        payload.type === "stop" ? "止损位" :
+        payload.type === "tp2"  ? "止盈2" :
+        payload.type === "tp1"  ? "止盈1" :
+        "突破位";
+
       if(alertBody){
-        alertBody.innerHTML = `现价 <b>${priceStr}</b> 达到 <b>${which} ${levelStr}</b> 价格位，请确认。`;
+        alertBody.innerHTML = `现价 <b>${priceStr}</b> 达到 ${which} <b>${levelStr}</b> 价格位，请确认。`;
       }
       alertOverlay.classList.add("show");
       alertOverlay.setAttribute("aria-hidden","false");
@@ -1394,7 +1431,26 @@
         return;
       }
 
-      const bo = Number(it.breakout);
+      // Then take-profit (higher target first), only when crossing the threshold
+      const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
+      if(Number.isFinite(tp2) && cur >= tp2 && (!hasPrev || prev < tp2)){
+        const ack = (alertAck[it.id] && alertAck[it.id].tp2) ? String(alertAck[it.id].tp2) : "";
+        if(ack !== priceKey(tp2) && canEnqueue("tp2", tp2)){
+          enqueueAlert({ id: it.id, type: "tp2", symbol, name, price: cur, level: tp2 });
+        }
+        return;
+      }
+
+      const tp1 = Number(it.tp1);
+      if(Number.isFinite(tp1) && cur >= tp1 && (!hasPrev || prev < tp1)){
+        const ack = (alertAck[it.id] && alertAck[it.id].tp1) ? String(alertAck[it.id].tp1) : "";
+        if(ack !== priceKey(tp1) && canEnqueue("tp1", tp1)){
+          enqueueAlert({ id: it.id, type: "tp1", symbol, name, price: cur, level: tp1 });
+        }
+        return;
+      }
+
+      const bo = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
       if(Number.isFinite(bo) && cur >= bo && (!hasPrev || prev < bo)){
         const ack = (alertAck[it.id] && alertAck[it.id].breakout) ? String(alertAck[it.id].breakout) : "";
         if(ack !== priceKey(bo) && canEnqueue("breakout", bo)){
@@ -1609,7 +1665,7 @@
         const it = {
           id: crypto.randomUUID(),
           symbol,
-          price: 0.00,
+          price: NaN,
           prevClose: NaN,
           open: NaN,
           high: NaN,
