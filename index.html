@@ -1387,8 +1387,8 @@ function isAutoRefreshLocked(){
         return;
       }
 
-      const stopped = items.filter(it => it && it.status === "已止损");
-      const broken  = items.filter(it => it && it.status === "已突破");
+      const stopped = items.filter(it => it && String(it.status||"").trim() === "已止损");
+      const broken  = items.filter(it => it && String(it.status||"").trim() === "已突破");
       const aboveAvg = items
         .filter(it => it && Number.isFinite(Number(it.price)) && Number.isFinite(Number(it.avgPrice)) && Number(it.avgPrice) > 0 && Number(it.price) > Number(it.avgPrice))
         .map(it => {
@@ -2006,7 +2006,7 @@ function isAutoRefreshLocked(){
           low: safeNum(o && o.low) ?? 0,
           avgPrice: safeNum(o && o.avgPrice) ?? 0,
           volRatio: safeNum(o && o.volRatio) ?? 0,
-          status: (o && o.status) ? String(o.status) : "监控中",
+          status: (o && o.status) ? String(o.status).trim() : "监控中",
           updatedAt: (o && o.updatedAt) ? String(o.updatedAt) : ""
         };
       });
@@ -2042,6 +2042,8 @@ function isAutoRefreshLocked(){
           render();
           toast("导入成功");
           closeIO();
+          // Sync quotes/status immediately after import so dashboard trigger-top reflects reality.
+          updateAllPrices().catch((e)=>console.warn("import sync updateAllPrices failed", e));
         }catch(err){
           console.error(err);
           toast("导入失败：文件格式不正确");
