@@ -271,7 +271,8 @@
     .d-tags{ display:inline-flex; align-items:center; gap:6px; }
     .dash-row{ cursor:pointer; }
     .dash-row:active{ background: rgba(17,24,39,.04); }
-    .dash-table td.stock{ padding-left: 12px; white-space: normal; line-height: 1.2; }
+    .dash-table td.stock{ padding-left: 12px; white-space: normal; line-height: 1.2;  font-weight: 950; text-overflow: clip; }
+
 
     /* Strong table (均价上方列表): tighten spacing to avoid right overflow */
     /* Strong table: tighten spacing & prevent right overflow (dashboard only) */
@@ -283,6 +284,54 @@
 
 
 
+
+/* Rank change arrow for Strong board (dashboard only) */
+.rank-arrow{
+  display:inline-block;
+  width: 12px;
+  margin-right: 4px;
+  text-align: center;
+  font-weight: 950;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.rank-arrow.up{ color: var(--red); }
+.rank-arrow.down{ color: var(--green-deep); }
+.rank-arrow.flat{ color: rgba(17,24,39,.18); }
+
+/* Dashboard stock cell layout: align Name + Code (left-aligned).
+       - Strong list keeps an arrow column (placeholder is invisible for “no change”).
+       - Triggered list removes the arrow column entirely to avoid truncation. */
+    .dash-stock{
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr) 6ch;
+      align-items: center;
+      column-gap: 6px;
+      width: 100%;
+      max-width: 100%;
+    }
+    .dash-stock.noarrow{
+      grid-template-columns: minmax(0, 1fr) 6ch;
+    }
+    .dash-stock.noarrow .rank-arrow{ display:none; }
+
+    /* Hide placeholder arrows but keep the column width */
+    .rank-arrow.placeholder{ opacity: 0; }
+
+    /* Avoid ellipsis for Chinese names; allow wrapping when tight */
+    .dash-stock .dash-name{
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+    .dash-stock .dash-code{
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .2px;
+      text-align: left;
+      justify-self: start;
+      white-space: nowrap;
+    }
+    .rank-arrow.placeholder{ color: transparent; }
     .dash-empty{
       padding: 10px 7px;
       color: var(--muted);
@@ -1270,32 +1319,36 @@ function isAutoRefreshLocked(){
     }
     // Breakout duration: exclude the noon break (11:30-13:00, local time)
     function tradingElapsedMs(startMs, endMs){
-      if(!Number.isFinite(Number(startMs)) || !Number.isFinite(Number(endMs))) return NaN;
-      const s0 = Number(startMs), e0 = Number(endMs);
-      if(e0 < s0) return 0;
+  if(!Number.isFinite(Number(startMs)) || !Number.isFinite(Number(endMs))) return NaN;
+  const s0 = Number(startMs), e0 = Number(endMs);
+  if(e0 < s0) return 0;
 
-      let total = e0 - s0;
-      let subtract = 0;
+  // Sum only in-trading-session overlap:
+  // 09:30-11:30 and 13:00-15:00 (exclude lunch break + exclude after 15:00).
+  let total = 0;
+  let d = new Date(s0);
+  while(true){
+    const y = d.getFullYear(), mo = d.getMonth(), da = d.getDate();
+    const dayStart = new Date(y, mo, da, 0, 0, 0, 0).getTime();
+    const dayEnd   = new Date(y, mo, da + 1, 0, 0, 0, 0).getTime();
 
-      // Handle per-day overlap (safe even if spans days; normally it won't because we reset next day)
-      let d = new Date(s0);
-      while(true){
-        const y = d.getFullYear(), mo = d.getMonth(), da = d.getDate();
-        const dayStart = new Date(y, mo, da, 0, 0, 0, 0).getTime();
-        const dayEnd   = new Date(y, mo, da + 1, 0, 0, 0, 0).getTime();
-        const segStart = Math.max(s0, dayStart);
-        const segEnd   = Math.min(e0, dayEnd);
-        if(segEnd > segStart){
-          const lunchStart = new Date(y, mo, da, 11, 30, 0, 0).getTime();
-          const lunchEnd   = new Date(y, mo, da, 13, 0, 0, 0).getTime();
-          subtract += overlapMs(segStart, segEnd, lunchStart, lunchEnd);
-        }
-        if(dayEnd >= e0) break;
-        d = new Date(dayEnd);
-      }
+    const segStart = Math.max(s0, dayStart);
+    const segEnd   = Math.min(e0, dayEnd);
 
-      return Math.max(0, total - subtract);
+    if(segEnd > segStart){
+      const s1Start = new Date(y, mo, da, 9, 30, 0, 0).getTime();
+      const s1End   = new Date(y, mo, da, 11, 30, 0, 0).getTime();
+      const s2Start = new Date(y, mo, da, 13, 0, 0, 0).getTime();
+      const s2End   = new Date(y, mo, da, 15, 0, 0, 0).getTime();
+      total += overlapMs(segStart, segEnd, s1Start, s1End);
+      total += overlapMs(segStart, segEnd, s2Start, s2End);
     }
+
+    if(dayEnd >= e0) break;
+    d = new Date(dayEnd);
+  }
+  return Math.max(0, total);
+}
 
     function getBreakoutDurationMs(symbol){
       pruneBreakoutTS();
@@ -1316,6 +1369,10 @@ function isAutoRefreshLocked(){
       if(h > 0) return `${h}时${m % 60}分`;
       return `${m}分`;
     }
+
+
+    // Strong board rank memory (for up/down arrows)
+    let strongRankPrev = {};
 
 
     function getDashCollapsed(){
@@ -1377,6 +1434,28 @@ function isAutoRefreshLocked(){
       const s = (it && it.symbol) ? String(it.symbol) : "";
       if(n && s) return `${n} ${s}`;
       return n || s || "--";
+    }
+
+
+    // Dashboard cell: align stock name + code (left aligned, fixed columns).
+    function dashStockCell(it, arrowHtml){
+      const n = (it && it.name) ? String(it.name) : "";
+      const s = (it && it.symbol) ? String(it.symbol) : "";
+
+      // If the caller provided the 2nd argument, we keep the arrow column.
+      // Triggered list calls dashStockCell(it) with 1 arg, so it gets the noarrow layout.
+      const keepArrowCol = (arguments.length >= 2);
+      const cls = keepArrowCol ? "dash-stock" : "dash-stock noarrow";
+
+      const arrow = keepArrowCol
+        ? (arrowHtml || '<span class="rank-arrow placeholder" aria-hidden="true">▲</span>')
+        : "";
+
+      if(n && s){
+        return `<span class="${cls}">${arrow}<span class="dash-name">${escapeHtml(n)}</span><span class="dash-code">${escapeHtml(s)}</span></span>`;
+      }
+      const label = n || s || "--";
+      return `<span class="${cls}">${arrow}<span class="dash-name">${escapeHtml(label)}</span><span class="dash-code"></span></span>`;
     }
 
     function renderDashboard(){
@@ -1443,7 +1522,7 @@ function isAutoRefreshLocked(){
           const levelTxt = Number.isFinite(level) ? formatCNY(level) : "--";
           html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
             <td>${tags}</td>
-            <td class="stock" title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
+            <td class="stock" title="${escapeHtml(stockTitle(it))}">${dashStockCell(it)}</td>
             <td class="num">${formatCNY(it.price)}</td>
             <td class="num">${levelTxt}</td>
           </tr>`;
@@ -1456,10 +1535,10 @@ function isAutoRefreshLocked(){
         <table class="dash-table dash-strong" aria-label="均价上方列表">
           <thead>
             <tr>
-              <th style="width:33%;">股票</th>
-              <th class="num" style="width:18%;">现价</th>
-              <th class="num" style="width:18%;">均价</th>
-              <th class="num" style="width:16%;">突破</th>
+              <th style="width:40%;">股票</th>
+              <th class="num" style="width:16%;">现价</th>
+              <th class="num" style="width:16%;">均价</th>
+              <th class="num" style="width:15%;">突破</th>
               <th class="num" style="width:13%;">距均价</th>
             </tr>
           </thead>
@@ -1467,25 +1546,46 @@ function isAutoRefreshLocked(){
 
       if(aboveAvg.length === 0){
         html += `</tbody></table><div class="dash-empty">暂无“均价上方”股票</div></div>`;
-      }else{
-        for(const x of aboveAvg){
-          const it = x.it;
-          const gap = x.gapPct;
-          const gapTxt = Number.isFinite(gap) ? `${gap > 0 ? "+" : ""}${gap.toFixed(2)}%` : "--";
-          const br = Number(it.breakout);
-          const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
-          html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
-            <td class="stock" title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
-            <td class="num">${formatCNY(it.price)}</td>
-            <td class="num">${formatCNY(it.avgPrice)}</td>
-            <td class="num">${brTxt}</td>
-            <td class="num"><span class="d-tag d-avg">${escapeHtml(gapTxt)}</span></td>
-          </tr>`;
-        }
-        html += `</tbody></table></div>`;
-      }
+}else{
+  const _prevStrong = strongRankPrev || {};
+  const _nextStrong = {};
+  let _iStrong = 0;
 
-      if(dashBodyEl) dashBodyEl.innerHTML = html;
+  for(const x of aboveAvg){
+    const it = x.it;
+    const sym = String(it.symbol || "");
+    const prevIdxRaw = _prevStrong[sym];
+    const prevIdx = Number.isFinite(Number(prevIdxRaw)) ? Number(prevIdxRaw) : null;
+
+    let arrowCls = "flat";
+    let arrowChar = "&nbsp;";
+    if(prevIdx !== null){
+      if(_iStrong < prevIdx){ arrowCls = "up"; arrowChar = "▲"; }
+      else if(_iStrong > prevIdx){ arrowCls = "down"; arrowChar = "▼"; }
+    }
+    const arrowHtml = `<span class="rank-arrow ${arrowCls}">${arrowChar}</span>`;
+
+    const gap = x.gapPct;
+    const gapTxt = Number.isFinite(gap) ? `${gap > 0 ? "+" : ""}${gap.toFixed(2)}%` : "--";
+    const br = Number(it.breakout);
+    const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
+
+    html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
+      <td class="stock" title="${escapeHtml(stockTitle(it))}">${dashStockCell(it, arrowHtml)}</td>
+      <td class="num">${formatCNY(it.price)}</td>
+      <td class="num">${formatCNY(it.avgPrice)}</td>
+      <td class="num">${brTxt}</td>
+      <td class="num"><span class="d-tag d-avg">${escapeHtml(gapTxt)}</span></td>
+    </tr>`;
+
+    _nextStrong[sym] = _iStrong;
+    _iStrong += 1;
+  }
+
+  strongRankPrev = _nextStrong;
+  html += `</tbody></table></div>`;
+}
+if(dashBodyEl) dashBodyEl.innerHTML = html;
       dashEl.hidden = false;
     }
 
