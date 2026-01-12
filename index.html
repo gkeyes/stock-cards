@@ -354,6 +354,10 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .metric .m-val.avg-up{ color: var(--red); }
+    .metric .m-val.avg-down{ color: var(--green-deep); }
+    .metric .m-val.avg-flat{ color: var(--text); }
+
     /* keep right block aligned to top when metrics exists */
     .price-right{ align-self:flex-start; }
 
@@ -772,6 +776,7 @@
     const LS_KEY = "strategy_cards_frontend_only_v3";
     const LS_DRAFT_KEY = "strategy_cards_form_draft_v2";
     const LS_BG_REFRESH_KEY = "strategy_cards_bg_refresh_v1";
+    const LS_DAY_KEY = "strategy_cards_last_seen_day_v1";
 
     // Background refresh (best-effort; browsers/OS may still throttle in background)
     let allowBgRefresh = false;
@@ -846,6 +851,56 @@
       const mm = String(d.getMinutes()).padStart(2,"0");
       const ss = String(d.getSeconds()).padStart(2,"0");
       return `${hh}:${mm}:${ss}`;
+    }
+
+    function todayYMD(d = new Date()){
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${dd}`;
+    }
+
+    function minutesOfDay(d = new Date()){
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
+    // A-share call auction windows (local device time):
+    // 09:15-09:30 (includes cooling period), 14:57-15:00 (closing auction)
+    function isCallAuctionNow(d = new Date()){
+      const m = minutesOfDay(d);
+      const morning = (m >= 9*60 + 15) && (m < 9*60 + 30);
+      const close = (m >= 14*60 + 57) && (m <= 15*60);
+      return morning || close;
+    }
+
+    function checkNewDayResetPrompt(){
+      // Avoid showing blocking dialogs when in background.
+      if(document.visibilityState !== "visible") return;
+
+      const today = todayYMD();
+      let last = "";
+      try{ last = localStorage.getItem(LS_DAY_KEY) || ""; }catch(_){ /* ignore */ }
+      if(last === today) return;
+
+      // Mark as seen today so it only prompts once per day.
+      try{ localStorage.setItem(LS_DAY_KEY, today); }catch(_){ /* ignore */ }
+
+      if(items.length === 0) return;
+      const ok = window.confirm(
+        `新交易日提醒：今天是 ${today}。\n是否重置所有股票状态为“监控中”，并清空今日阈值弹窗确认记录？`
+      );
+      if(ok) resetDailyState();
+    }
+
+    function resetDailyState(){
+      for(const it of items){
+        if(it && typeof it === "object") it.status = "监控中";
+      }
+      alertAck = {};
+      saveAlertAck();
+      persist();
+      render();
+      toast("已重置：状态 & 今日提醒记录");
     }
 
     function formatCNY(n){
@@ -1049,6 +1104,14 @@
           else if(cur < prev) priceDirClass = "down";
         }
 
+        const avg = Number(it.avgPrice);
+        let avgDirClass = "";
+        if(Number.isFinite(cur) && Number.isFinite(avg) && avg > 0){
+          if(cur > avg) avgDirClass = "avg-up";
+          else if(cur < avg) avgDirClass = "avg-down";
+          else avgDirClass = "avg-flat";
+        }
+
                 // pct change badge (does not affect layout height: absolutely positioned)
         let chgPct = NaN;
         if(Number.isFinite(prev) && prev > 0 && Number.isFinite(cur)){
@@ -1126,7 +1189,7 @@
 
               <div class="price-mid">
                 <div class="metric"><div class="m-label">最高</div><div class="m-val">${formatMaybeCNY(it.high)}</div></div>
-                <div class="metric"><div class="m-label">均价</div><div class="m-val">${formatMaybeCNY(it.avgPrice)}</div></div>
+                <div class="metric"><div class="m-label">均价</div><div class="m-val ${avgDirClass}">${formatMaybeCNY(it.avgPrice)}</div></div>
                 <div class="metric"><div class="m-label">今开</div><div class="m-val">${formatMaybeCNY(it.open)}</div></div>
                 <div class="metric"><div class="m-label">最低</div><div class="m-val">${formatMaybeCNY(it.low)}</div></div>
                 <div class="metric"><div class="m-label">量比</div><div class="m-val">${formatRatio(it.volRatio)}</div></div>
@@ -1396,6 +1459,7 @@
     function maybeEnqueueThresholdAlerts(it, prevPrice){
       if(!alertsEnabled) return;
       if(!it || !it.id) return;
+      if(isCallAuctionNow()) return;
 
       const cur = Number(it.price);
       if(!Number.isFinite(cur)) return;
@@ -1746,6 +1810,9 @@
           // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout(可选) => 已突破; else 监控中
           if(q.indicative){
             it.status = "监控中";
+          }else if(isCallAuctionNow()){
+            // Call auction can have noisy/indicative prints; keep previous status to avoid false triggers.
+            if(it.status === "更新失败") it.status = "监控中";
           }else{
             if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
             else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
@@ -1795,6 +1862,9 @@
         // status rule: <= stop => 已止损; >= tp2 => 已止盈2; >= tp1 => 已止盈1; >= breakout(可选) => 已突破; else 监控中
         if(q.indicative){
           it.status = "监控中";
+        }else if(isCallAuctionNow()){
+          // Call auction: keep previous status to avoid false triggers.
+          if(it.status === "更新失败") it.status = "监控中";
         }else{
           if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
           else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
@@ -1816,11 +1886,17 @@
     function startAutoRefresh(){
       if(timer) clearInterval(timer);
       timer = setInterval(() => {
-        if (allowBgRefresh || document.visibilityState === "visible") updateAllPrices();
+        if (allowBgRefresh || document.visibilityState === "visible"){
+          if (document.visibilityState === "visible") checkNewDayResetPrompt();
+          updateAllPrices();
+        }
       }, 5000);
     }
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") updateAllPrices();
+      if (document.visibilityState === "visible"){
+        checkNewDayResetPrompt();
+        updateAllPrices();
+      }
     });
 
     // ---------- Tiny toast ----------
@@ -1869,6 +1945,7 @@
 // Initial
     render();
     persist();
+    checkNewDayResetPrompt();
     startAutoRefresh();
     updateAllPrices();
   </script>
