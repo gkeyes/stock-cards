@@ -1481,7 +1481,8 @@ function isAutoRefreshLocked(){
       const stopCount = stopped.length;
       const breakCount = broken.length;
       const aboveCount = aboveAvg.length;
-      if(dashSummaryEl) dashSummaryEl.textContent = `止损 ${stopCount} · 突破 ${breakCount} · 强势 ${aboveCount}`;
+      const totalCount = items.length;
+      if(dashSummaryEl) dashSummaryEl.textContent = `总数 ${totalCount} · 止损 ${stopCount} · 突破 ${breakCount} · 强势 ${aboveCount}`;
 
       let html = "";
 
