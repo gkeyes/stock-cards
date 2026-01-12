@@ -175,6 +175,103 @@
 
     .list{ padding: 0 4px 24px 4px; }
 
+    /* Dashboard panel (top summary) */
+    .dash{
+      margin: 0 4px 10px 4px;
+      padding: 10px 10px 8px 10px;
+      background: rgba(255,255,255,.75);
+      border: 1px solid rgba(255,255,255,.6);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .dash-hd{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .dash-title{
+      display:flex;
+      align-items:baseline;
+      gap: 8px;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .dash-summary{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .dash-toggle{
+      border: 0;
+      background: rgba(17,24,39,.06);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 8px 10px;
+      font-weight: 900;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      box-shadow: 0 10px 20px rgba(17,24,39,.06);
+    }
+    .dash-toggle:active{ transform: translateY(1px); }
+    .dash-bd{ margin-top: 8px; display:block; }
+    .dash.collapsed .dash-bd{ display:none; }
+
+    .dash-section{ margin-top: 10px; }
+    .dash-section:first-child{ margin-top: 0; }
+
+    .dash-table{
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+    .dash-table th,
+    .dash-table td{
+      padding: 7px 6px;
+      border-top: 1px solid var(--divider);
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dash-table th{
+      color: var(--muted);
+      font-weight: 900;
+      border-top: 0;
+    }
+    .dash-table td.num,
+    .dash-table th.num{ text-align: right; }
+
+    .d-tag{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 950;
+      font-size: 11px;
+      line-height: 1;
+      border: 1px solid rgba(17,24,39,.08);
+    }
+    .d-stop{ background: var(--pill-red-bg); color: var(--pill-red-text); }
+    .d-break{ background: var(--pill-blue-bg); color: var(--pill-blue-text); }
+    .d-avg{ background: rgba(17,24,39,.06); color: var(--muted); }
+
+    .dash-empty{
+      padding: 8px 6px;
+      color: var(--muted);
+      font-weight: 850;
+      font-size: 12px;
+      border-top: 1px solid var(--divider);
+    }
+
+
     .card{
       background: rgba(255,255,255,.85);
       backdrop-filter: blur(10px);
@@ -650,6 +747,22 @@
   </div>
     </div>
 
+    <div class="dash" id="dashboard" hidden>
+      <div class="dash-hd">
+        <div class="dash-title">
+          <span>看板</span>
+          <span class="dash-summary" id="dashSummary"></span>
+        </div>
+        <button class="dash-toggle" id="dashToggle" type="button" aria-label="Toggle dashboard">
+          <span id="dashToggleText">收起</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="dash-bd" id="dashBody"></div>
+    </div>
+
     <div class="list" id="list"></div>
   </div>
 
@@ -1057,6 +1170,142 @@
 
     // ---------- UI Rendering ----------
     const listEl = document.getElementById("list");
+    const dashEl = document.getElementById("dashboard");
+    const dashSummaryEl = document.getElementById("dashSummary");
+    const dashBodyEl = document.getElementById("dashBody");
+    const dashToggleEl = document.getElementById("dashToggle");
+    const dashToggleTextEl = document.getElementById("dashToggleText");
+    const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
+
+    function getDashCollapsed(){
+      try{ return localStorage.getItem(LS_DASH_COLLAPSED) === "1"; }catch(_){ return false; }
+    }
+    function setDashCollapsed(v){
+      if(!dashEl) return;
+      dashEl.classList.toggle("collapsed", !!v);
+      if(dashToggleTextEl) dashToggleTextEl.textContent = v ? "展开" : "收起";
+      try{ localStorage.setItem(LS_DASH_COLLAPSED, v ? "1" : "0"); }catch(_){}
+    }
+    function initDashboard(){
+      if(!dashEl || !dashToggleEl) return;
+      setDashCollapsed(getDashCollapsed());
+      dashToggleEl.addEventListener("click", () => {
+        setDashCollapsed(!dashEl.classList.contains("collapsed"));
+      });
+    }
+
+    function stockTitle(it){
+      const n = (it && it.name) ? String(it.name) : "";
+      const s = (it && it.symbol) ? String(it.symbol) : "";
+      if(n && s) return `${n} ${s}`;
+      return n || s || "--";
+    }
+
+    function renderDashboard(){
+      if(!dashEl) return;
+      if(!Array.isArray(items) || items.length === 0){
+        dashEl.hidden = true;
+        return;
+      }
+
+      const stopped = items.filter(it => it && it.status === "已止损");
+      const broken  = items.filter(it => it && it.status === "已突破");
+      const aboveAvg = items
+        .filter(it => it && Number.isFinite(Number(it.price)) && Number.isFinite(Number(it.avgPrice)) && Number(it.avgPrice) > 0 && Number(it.price) > Number(it.avgPrice))
+        .map(it => {
+          const cur = Number(it.price);
+          const avg = Number(it.avgPrice);
+          const gapPct = avg > 0 ? (cur - avg) / avg * 100 : NaN;
+          return { it, cur, avg, gapPct };
+        })
+        .sort((a,b) => (b.gapPct || -Infinity) - (a.gapPct || -Infinity));
+
+      const stopCount = stopped.length;
+      const breakCount = broken.length;
+      const aboveCount = aboveAvg.length;
+      if(dashSummaryEl) dashSummaryEl.textContent = `止损 ${stopCount} · 突破 ${breakCount} · 强势 ${aboveCount}`;
+
+      let html = "";
+
+      // A) Triggered: stop-loss + breakout
+      html += `<div class="dash-section">
+        <table class="dash-table" aria-label="触发列表">
+          <thead>
+            <tr>
+              <th style="width:20%;">状态</th>
+              <th style="width:36%;">股票</th>
+              <th class="num" style="width:22%;">现价</th>
+              <th class="num" style="width:22%;">触发位</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      const triggered = [
+        ...stopped.map(it => ({ it, kind:"stop" })),
+        ...broken.map(it => ({ it, kind:"break" })),
+      ];
+
+      if(triggered.length === 0){
+        html += `</tbody></table><div class="dash-empty">暂无触发（止损 / 突破）</div></div>`;
+      }else{
+        for(const row of triggered){
+          const it = row.it;
+          const kind = row.kind;
+          const tag = kind === "stop"
+            ? `<span class="d-tag d-stop">已止损</span>`
+            : `<span class="d-tag d-break">已突破</span>`;
+          const level = kind === "stop" ? Number(it.stop) : Number(it.breakout);
+          const levelTxt = Number.isFinite(level) ? formatCNY(level) : "--";
+          html += `<tr>
+            <td>${tag}</td>
+            <td title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
+            <td class="num">${formatCNY(it.price)}</td>
+            <td class="num">${levelTxt}</td>
+          </tr>`;
+        }
+        html += `</tbody></table></div>`;
+      }
+
+      // B) Above average price (show breakout instead of stop)
+      html += `<div class="dash-section">
+        <table class="dash-table" aria-label="均价上方列表">
+          <thead>
+            <tr>
+              <th style="width:34%;">股票</th>
+              <th class="num" style="width:18%;">现价</th>
+              <th class="num" style="width:18%;">均价</th>
+              <th class="num" style="width:16%;">突破</th>
+              <th class="num" style="width:14%;">距均价</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      if(aboveAvg.length === 0){
+        html += `</tbody></table><div class="dash-empty">暂无“均价上方”股票</div></div>`;
+      }else{
+        for(const x of aboveAvg){
+          const it = x.it;
+          const gap = x.gapPct;
+          const gapTxt = Number.isFinite(gap) ? `${gap > 0 ? "+" : ""}${gap.toFixed(2)}%` : "--";
+          const br = Number(it.breakout);
+          const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
+          html += `<tr>
+            <td title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
+            <td class="num">${formatCNY(it.price)}</td>
+            <td class="num">${formatCNY(it.avgPrice)}</td>
+            <td class="num">${brTxt}</td>
+            <td class="num"><span class="d-tag d-avg">${escapeHtml(gapTxt)}</span></td>
+          </tr>`;
+        }
+        html += `</tbody></table></div>`;
+      }
+
+      if(dashBodyEl) dashBodyEl.innerHTML = html;
+      dashEl.hidden = false;
+    }
+
+    initDashboard();
+
 
     function escapeHtml(str){
       return String(str)
@@ -1078,6 +1327,7 @@
     }
 
     function render(){
+      renderDashboard();
       listEl.innerHTML = "";
       if(items.length === 0){
         const empty = document.createElement("div");
