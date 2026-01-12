@@ -915,6 +915,18 @@
     let allowBgRefresh = false;
     try{ allowBgRefresh = localStorage.getItem(LS_BG_REFRESH_KEY) === "1"; }catch(_){ /* ignore */ }
 
+// Smooth locate lock: prevent auto-refresh re-render from interrupting smooth scroll-to-card.
+// (Manual refresh buttons still work; only the interval auto-refresh is gated.)
+let locateLockUntil = 0;
+function lockAutoRefreshFor(ms){
+  const until = Date.now() + Number(ms || 0);
+  if(until > locateLockUntil) locateLockUntil = until;
+}
+function isAutoRefreshLocked(){
+  return Date.now() < locateLockUntil;
+}
+
+
     /** @type {{id:string, symbol:string, price:number, prevClose:number, open:number, high:number, low:number, avgPrice:number, volRatio:number, status:string, updatedAt:string, stop:number, support:number, breakout:(number|null), tp1:number, tp2:(number|null), name?:string, marketCode?:string}[]} */
     let items = load() ?? [];
 
@@ -1328,10 +1340,33 @@
           const tr = e.target && e.target.closest ? e.target.closest("tr[data-symbol]") : null;
           if(!tr) return;
           const sym = tr.getAttribute("data-symbol") || "";
-          const el = document.getElementById("card-" + sym);
-          if(el && el.scrollIntoView){
+          const id = "card-" + sym;
+
+          // Prevent interval auto-refresh from re-rendering mid-scroll and stopping early.
+          lockAutoRefreshFor(2500);
+
+          const el = document.getElementById(id);
+          if(!el) return;
+
+          // Prefer scrollIntoView to respect nested scroll containers (more robust on mobile).
+          try{
             el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }catch(_){
+            try{ el.scrollIntoView(); }catch(__){}
           }
+
+          // Second/third pass after layout settles (e.g., CSS reflow or dashboard resize).
+          setTimeout(() => {
+            const el2 = document.getElementById(id);
+            if(!el2) return;
+            try{ el2.scrollIntoView({ behavior: "smooth", block: "start" }); }catch(_){ try{ el2.scrollIntoView(); }catch(__){} }
+          }, 450);
+
+          setTimeout(() => {
+            const el3 = document.getElementById(id);
+            if(!el3) return;
+            try{ el3.scrollIntoView({ behavior: "auto", block: "start" }); }catch(_){ try{ el3.scrollIntoView(); }catch(__){} }
+          }, 900);
         });
       }
 
@@ -2297,7 +2332,7 @@
     function startAutoRefresh(){
       if(timer) clearInterval(timer);
       timer = setInterval(() => {
-        if (allowBgRefresh || document.visibilityState === "visible"){
+        if ((allowBgRefresh || document.visibilityState === "visible") && !isAutoRefreshLocked()){
           if (document.visibilityState === "visible") checkNewDayResetPrompt();
           updateAllPrices();
         }
