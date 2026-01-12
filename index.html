@@ -178,7 +178,7 @@
     /* Dashboard panel (top summary) */
     .dash{
       margin: 0 4px 10px 4px;
-      padding: 10px 10px 8px 10px;
+      padding: 12px 12px 10px 12px;
       background: rgba(255,255,255,.75);
       border: 1px solid rgba(255,255,255,.6);
       border-radius: var(--radius);
@@ -195,12 +195,12 @@
       align-items:baseline;
       gap: 8px;
       min-width: 0;
-      font-size: 14px;
+      font-size: clamp(15px, 4.1vw, 17px);
       font-weight: 900;
       letter-spacing: .2px;
     }
     .dash-summary{
-      font-size: 12px;
+      font-size: clamp(12px, 3.4vw, 14px);
       color: var(--muted);
       font-weight: 850;
       white-space: nowrap;
@@ -211,6 +211,7 @@
       color: var(--text);
       border-radius: 14px;
       padding: 8px 10px;
+      font-size: 13px;
       font-weight: 900;
       cursor:pointer;
       display:inline-flex;
@@ -229,11 +230,12 @@
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 12px;
+      font-size: clamp(12.5px, 3.45vw, 14.5px);
     }
     .dash-table th,
     .dash-table td{
-      padding: 7px 6px;
+      box-sizing: border-box;
+      padding: 9px 7px;
       border-top: 1px solid var(--divider);
       vertical-align: middle;
       overflow: hidden;
@@ -245,6 +247,8 @@
       font-weight: 900;
       border-top: 0;
     }
+    .dash-table tbody tr:nth-child(odd){ background: rgba(17,24,39,.02); }
+
     .dash-table td.num,
     .dash-table th.num{ text-align: right; }
 
@@ -252,10 +256,10 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      padding: 4px 8px;
+      padding: 5px 9px;
       border-radius: 999px;
       font-weight: 950;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1;
       border: 1px solid rgba(17,24,39,.08);
     }
@@ -263,11 +267,27 @@
     .d-break{ background: var(--pill-blue-bg); color: var(--pill-blue-text); }
     .d-avg{ background: rgba(17,24,39,.06); color: var(--muted); }
 
+    .d-dur{ background: rgba(17,24,39,.06); color: var(--text); }
+    .d-tags{ display:inline-flex; align-items:center; gap:6px; }
+    .dash-row{ cursor:pointer; }
+    .dash-row:active{ background: rgba(17,24,39,.04); }
+    .dash-table td.stock{ padding-left: 12px; white-space: normal; line-height: 1.2; }
+
+    /* Strong table (均价上方列表): tighten spacing to avoid right overflow */
+    /* Strong table: tighten spacing & prevent right overflow (dashboard only) */
+.dash-strong th, .dash-strong td{ padding: 8px 5px; }
+.dash-strong td.stock{ padding-right: 2px; white-space: nowrap; }
+.dash-strong th.num, .dash-strong td.num{ padding-left: 2px; }
+.dash-strong td:last-child{ padding-right: 4px; } /* ensure right padding doesn't push outside */
+.dash-strong .d-tag{ max-width: 100%; box-sizing: border-box; }
+
+
+
     .dash-empty{
-      padding: 8px 6px;
+      padding: 10px 7px;
       color: var(--muted);
       font-weight: 850;
-      font-size: 12px;
+      font-size: clamp(12.5px, 3.45vw, 14px);
       border-top: 1px solid var(--divider);
     }
 
@@ -1009,12 +1029,18 @@
       for(const it of items){
         if(it && typeof it === "object") it.status = "监控中";
       }
+
+      // Clear breakout duration stats for the new trading day
+      try{ localStorage.removeItem(LS_BREAKOUT_TS); }catch(_){ /* ignore */ }
+      breakoutTS = null;
+
       alertAck = {};
       saveAlertAck();
       persist();
       render();
       toast("已重置：状态 & 今日提醒记录");
     }
+
 
     function formatCNY(n){
       const x = Number(n);
@@ -1177,6 +1203,109 @@
     const dashToggleTextEl = document.getElementById("dashToggleText");
     const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
 
+    const LS_BREAKOUT_TS = "stock-cards-breakout-ts-v1";
+    let breakoutTS = null; // { [symbol]: { ts:number, day:string } }
+
+    function loadBreakoutTS(){
+      if(breakoutTS) return breakoutTS;
+      try{
+        breakoutTS = JSON.parse(localStorage.getItem(LS_BREAKOUT_TS) || "{}") || {};
+      }catch(_){
+        breakoutTS = {};
+      }
+      return breakoutTS;
+    }
+    function saveBreakoutTS(){
+      try{ localStorage.setItem(LS_BREAKOUT_TS, JSON.stringify(breakoutTS || {})); }catch(_){}
+    }
+    function pruneBreakoutTS(){
+      const today = todayYMD();
+      const m = loadBreakoutTS();
+      let changed = false;
+      for(const k of Object.keys(m)){
+        const o = m[k];
+        if(!o || o.day !== today || !Number.isFinite(Number(o.ts))){
+          delete m[k];
+          changed = true;
+        }
+      }
+      if(changed) saveBreakoutTS();
+      return m;
+    }
+    function ensureBreakoutStart(symbol){
+      if(!symbol) return;
+      const today = todayYMD();
+      const m = loadBreakoutTS();
+      const o = m[symbol];
+      if(!o || o.day !== today || !Number.isFinite(Number(o.ts))){
+        m[symbol] = { ts: Date.now(), day: today };
+        saveBreakoutTS();
+      }
+    }
+    function clearBreakoutStart(symbol){
+      if(!symbol) return;
+      const m = loadBreakoutTS();
+      if(Object.prototype.hasOwnProperty.call(m, symbol)){
+        delete m[symbol];
+        saveBreakoutTS();
+      }
+    }
+
+    function overlapMs(a0, a1, b0, b1){
+      const s = Math.max(a0, b0);
+      const e = Math.min(a1, b1);
+      return Math.max(0, e - s);
+    }
+    // Breakout duration: exclude the noon break (11:30-13:00, local time)
+    function tradingElapsedMs(startMs, endMs){
+      if(!Number.isFinite(Number(startMs)) || !Number.isFinite(Number(endMs))) return NaN;
+      const s0 = Number(startMs), e0 = Number(endMs);
+      if(e0 < s0) return 0;
+
+      let total = e0 - s0;
+      let subtract = 0;
+
+      // Handle per-day overlap (safe even if spans days; normally it won't because we reset next day)
+      let d = new Date(s0);
+      while(true){
+        const y = d.getFullYear(), mo = d.getMonth(), da = d.getDate();
+        const dayStart = new Date(y, mo, da, 0, 0, 0, 0).getTime();
+        const dayEnd   = new Date(y, mo, da + 1, 0, 0, 0, 0).getTime();
+        const segStart = Math.max(s0, dayStart);
+        const segEnd   = Math.min(e0, dayEnd);
+        if(segEnd > segStart){
+          const lunchStart = new Date(y, mo, da, 11, 30, 0, 0).getTime();
+          const lunchEnd   = new Date(y, mo, da, 13, 0, 0, 0).getTime();
+          subtract += overlapMs(segStart, segEnd, lunchStart, lunchEnd);
+        }
+        if(dayEnd >= e0) break;
+        d = new Date(dayEnd);
+      }
+
+      return Math.max(0, total - subtract);
+    }
+
+    function getBreakoutDurationMs(symbol){
+      pruneBreakoutTS();
+      const m = loadBreakoutTS();
+      const o = m[symbol];
+      if(o && Number.isFinite(Number(o.ts))){
+        return tradingElapsedMs(Number(o.ts), Date.now());
+      }
+      return NaN;
+    }
+    function formatDurationCN(ms){
+      if(!Number.isFinite(ms) || ms < 0) return "--";
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const h = Math.floor(m / 60);
+      const d = Math.floor(h / 24);
+      if(d > 0) return `${d}天${h % 24}时`;
+      if(h > 0) return `${h}时${m % 60}分`;
+      return `${m}分`;
+    }
+
+
     function getDashCollapsed(){
       try{ return localStorage.getItem(LS_DASH_COLLAPSED) === "1"; }catch(_){ return false; }
     }
@@ -1192,6 +1321,20 @@
       dashToggleEl.addEventListener("click", () => {
         setDashCollapsed(!dashEl.classList.contains("collapsed"));
       });
+
+      // Click row to locate its stock card
+      if(dashBodyEl){
+        dashBodyEl.addEventListener("click", (e) => {
+          const tr = e.target && e.target.closest ? e.target.closest("tr[data-symbol]") : null;
+          if(!tr) return;
+          const sym = tr.getAttribute("data-symbol") || "";
+          const el = document.getElementById("card-" + sym);
+          if(el && el.scrollIntoView){
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      }
+
     }
 
     function stockTitle(it){
@@ -1202,6 +1345,7 @@
     }
 
     function renderDashboard(){
+      pruneBreakoutTS();
       if(!dashEl) return;
       if(!Array.isArray(items) || items.length === 0){
         dashEl.hidden = true;
@@ -1232,10 +1376,10 @@
         <table class="dash-table" aria-label="触发列表">
           <thead>
             <tr>
-              <th style="width:20%;">状态</th>
-              <th style="width:36%;">股票</th>
-              <th class="num" style="width:22%;">现价</th>
-              <th class="num" style="width:22%;">触发位</th>
+              <th style="width:30%;">状态</th>
+              <th style="width:34%;">股票</th>
+              <th class="num" style="width:18%;">现价</th>
+              <th class="num" style="width:18%;">触发位</th>
             </tr>
           </thead>
           <tbody>`;
@@ -1251,14 +1395,20 @@
         for(const row of triggered){
           const it = row.it;
           const kind = row.kind;
-          const tag = kind === "stop"
-            ? `<span class="d-tag d-stop">已止损</span>`
-            : `<span class="d-tag d-break">已突破</span>`;
+          let tags = "";
+          if(kind === "stop"){
+            tags = `<span class="d-tag d-stop">已止损</span>`;
+          }else{
+            const durMs = getBreakoutDurationMs(it.symbol);
+            const dur = Number.isFinite(durMs) ? formatDurationCN(durMs) : "--";
+            const durPill = (dur && dur !== "--") ? `<span class="d-tag d-dur">${escapeHtml(dur)}</span>` : "";
+            tags = `<span class="d-tags"><span class="d-tag d-break">已突破</span>${durPill}</span>`;
+          }
           const level = kind === "stop" ? Number(it.stop) : Number(it.breakout);
           const levelTxt = Number.isFinite(level) ? formatCNY(level) : "--";
-          html += `<tr>
-            <td>${tag}</td>
-            <td title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
+          html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
+            <td>${tags}</td>
+            <td class="stock" title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
             <td class="num">${formatCNY(it.price)}</td>
             <td class="num">${levelTxt}</td>
           </tr>`;
@@ -1268,14 +1418,14 @@
 
       // B) Above average price (show breakout instead of stop)
       html += `<div class="dash-section">
-        <table class="dash-table" aria-label="均价上方列表">
+        <table class="dash-table dash-strong" aria-label="均价上方列表">
           <thead>
             <tr>
-              <th style="width:34%;">股票</th>
+              <th style="width:33%;">股票</th>
               <th class="num" style="width:18%;">现价</th>
               <th class="num" style="width:18%;">均价</th>
               <th class="num" style="width:16%;">突破</th>
-              <th class="num" style="width:14%;">距均价</th>
+              <th class="num" style="width:13%;">距均价</th>
             </tr>
           </thead>
           <tbody>`;
@@ -1289,8 +1439,8 @@
           const gapTxt = Number.isFinite(gap) ? `${gap > 0 ? "+" : ""}${gap.toFixed(2)}%` : "--";
           const br = Number(it.breakout);
           const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
-          html += `<tr>
-            <td title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
+          html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
+            <td class="stock" title="${escapeHtml(stockTitle(it))}">${escapeHtml(stockTitle(it))}</td>
             <td class="num">${formatCNY(it.price)}</td>
             <td class="num">${formatCNY(it.avgPrice)}</td>
             <td class="num">${brTxt}</td>
@@ -1378,6 +1528,7 @@
 
         const card = document.createElement("div");
         card.className = "card";
+        card.id = "card-" + it.symbol;
 
         const bigTitle = it.name ? escapeHtml(it.name) : escapeHtml(it.symbol);
         const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
@@ -2064,11 +2215,21 @@
             // Call auction can have noisy/indicative prints; keep previous status to avoid false triggers.
             if(it.status === "更新失败") it.status = "监控中";
           }else{
+            const prevStatus = it.status;
             if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
             else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
             else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
             else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
             else it.status = "监控中";
+
+            // Breakout duration tracking (clears on next day or when falling below breakout)
+            if(it.status === "已突破"){
+              if(prevStatus !== "已突破") ensureBreakoutStart(it.symbol);
+              else ensureBreakoutStart(it.symbol); // ensure exists (e.g., after reload)
+            }else{
+              if(prevStatus === "已突破") clearBreakoutStart(it.symbol);
+            }
+
             maybeEnqueueThresholdAlerts(it, prevPrice);
           }
         }
