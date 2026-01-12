@@ -403,6 +403,30 @@
     .chg-badge.flat{ background: rgba(17,24,39,.06); color: var(--muted); }
 
 
+    /* Card note box (备注). Uses existing empty middle space in .card-top; does not change other layout blocks. */
+    .card-note{
+      flex: 0 1 180px;
+      min-width: 96px;
+      height: 34px;
+      margin-top: -6px;
+      padding: 5px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(17,24,39,.08);
+      background: rgba(255,255,255,.72);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.0;
+      overflow: hidden;
+      text-overflow: clip;
+      white-space: normal;
+      word-break: break-word;
+      align-self: flex-start;
+    }
+    .card-note .note-ph{
+      color: var(--muted);
+      font-weight: 850;
+    }
+
     .card-tools{
       display:flex;
       gap:8px;
@@ -851,6 +875,11 @@
         <div class="field">
           <label>股票代码（6 位，如 000001 / 600000 / 430047）</label>
           <input id="fSymbol" inputmode="numeric" placeholder="000001" maxlength="12" />
+        </div>
+
+        <div class="field">
+          <label>备注（可选）</label>
+          <input id="fNote" placeholder="写下计划/逻辑/风险点（可选）" maxlength="80" />
         </div>
 
         <div class="grid">
@@ -1668,6 +1697,9 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
 
         const bigTitle = it.name ? escapeHtml(it.name) : escapeHtml(it.symbol);
         const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
+        const noteText = String(it.note ?? "").trim();
+        const noteTitle = noteText ? escapeHtml(noteText) : "";
+        const noteHtml = noteText ? escapeHtml(noteText) : '<span class="note-ph">备注</span>';
 
         card.innerHTML = `
           <div class="card-inner">
@@ -1677,6 +1709,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
                 <p class="small">${sub}</p>
                 <div class="chg-badge ${chgClass}" title="涨跌幅">${escapeHtml(chgText)}</div>
               </div>
+              <div class="card-note" title="${noteTitle}">${noteHtml}</div>
               <div class="card-tools">
                 <button class="tool sort-only" data-act="moveUp" data-id="${it.id}" aria-label="Move Up" title="上移">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2155,6 +2188,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     const overlay = document.getElementById("overlay");
     const modalTitle = document.getElementById("modalTitle");
     const fSymbol = document.getElementById("fSymbol");
+    const fNote = document.getElementById("fNote");
     const fStop = document.getElementById("fStop");
     const fSupport = document.getElementById("fSupport");
     const fBreakout = document.getElementById("fBreakout");
@@ -2172,9 +2206,10 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
           breakout: fBreakout.value.trim(),
           tp1: fTp1.value.trim(),
           tp2: fTp2.value.trim(),
+          note: (fNote ? fNote.value.trim() : ""),
         });
       };
-      [fStop, fSupport, fBreakout, fTp1, fTp2].forEach(el => el.addEventListener("input", handler));
+      [fStop, fSupport, fBreakout, fTp1, fTp2, fNote].filter(Boolean).forEach(el => el.addEventListener("input", handler));
     }
     wireDraft();
 
@@ -2189,6 +2224,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         modalTitle.textContent = "添加股票";
         const d = loadDraft();
         fSymbol.value = "";
+        if(fNote) fNote.value = d.note ?? "";
         fStop.value = d.stop ?? "";
         fSupport.value = d.support ?? "";
         fBreakout.value = d.breakout ?? "";
@@ -2199,6 +2235,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         if(!it) return;
         modalTitle.textContent = "编辑股票";
         fSymbol.value = it.symbol;
+        if(fNote) fNote.value = String(it.note ?? "");
         fStop.value = String(it.stop ?? "");
         fSupport.value = String(it.support ?? "");
         fBreakout.value = (Number.isFinite(it.breakout) ? String(it.breakout) : "");
@@ -2236,6 +2273,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
 
     btnSave.addEventListener("click", async () => {
       const symbol = fSymbol.value.trim();
+      const note = (fNote ? fNote.value.trim() : "");
       const stop = parseNum(fStop.value);
       const support = parseNum(fSupport.value);
       const breakout = parseOptionalNum(fBreakout.value);
@@ -2277,6 +2315,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
           volRatio: NaN,
           status: "监控中",
           updatedAt: "--:--:--",
+          note,
           stop, support, breakout, tp1, tp2
         };
         items.unshift(it);
@@ -2284,6 +2323,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         const it = items.find(x => x.id === editingId);
         if(!it) return;
         it.symbol = symbol;
+        it.note = note;
         it.stop = stop;
         it.support = support;
         it.breakout = breakout;
