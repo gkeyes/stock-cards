@@ -1639,7 +1639,7 @@
             <input id="fSupport" inputmode="decimal" placeholder="14.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>突破位（可选）</label>
+            <label>突破（可选）</label>
             <input id="fBreakout" inputmode="decimal" placeholder="16.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
@@ -1695,7 +1695,7 @@
           <div style="min-width:0;">
             <div style="font-weight:900;">阈值弹窗通知</div>
             <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
-              当现价触发止损位/突破位时弹窗提醒（仅弹一次，直到你修改对应价位）。
+              当现价触发止损位/突破时弹窗提醒（仅弹一次，直到你修改对应价位）。
             </div>
           </div>
           <label class="switch" title="阈值弹窗通知">
@@ -1750,7 +1750,7 @@
     const LS_BG_REFRESH_KEY = "strategy_cards_bg_refresh_v1";
     const LS_DAY_KEY = "strategy_cards_last_seen_day_v1";
 
-    const METER_PAD_PCT = 3; // % per side for meter invalid zones
+    const METER_PAD_PCT = 0; // % per side for meter invalid zones
 
     const LS_THEME_KEY = "strategy_cards_theme_v1";
     const THEME_LIGHT = "light";
@@ -1961,6 +1961,11 @@ function isAutoRefreshLocked(){
       const x = Number(n);
       if(Number.isNaN(x)) return "¥0.00";
       return "¥" + x.toFixed(2);
+    }
+
+    // Same numeric formatting as formatCNY(), but without the RMB symbol prefix.
+    function formatCNYNoSymbol(n){
+      return formatCNY(n).replace(/^¥/, "");
     }
 
     function formatMaybeCNY(n){
@@ -2625,7 +2630,12 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
         const noteText = String(it.note ?? "").replace(/\s+/g, " ").trim();
         const noteTitle = noteText ? escapeHtml(noteText) : "";
-        const noteHtml = noteText ? escapeHtml(noteText) : '<span class="note-ph">备注</span>';
+        const noteHtml = noteText ? escapeHtml(noteText) : "";
+        const noteRowHtml = noteText ? `
+            <div class="note-row">
+              <div class="card-note" aria-expanded="false" title="${noteTitle}">${noteHtml}</div>
+            </div>
+        ` : "";
         const collapseLabel = cardCollapsed ? "展开" : "折叠";
 
         // --- Template A++: Visual Meter (scale: intraday low -> intraday high; levels may extend into invalid zones) ---
@@ -2707,9 +2717,9 @@ const breakoutNum = Number(it.breakout);
 const lowNum = Number(it.low);
 const highNum = Number(it.high);
 
-const stopVal = Number.isFinite(stopNum) ? formatCNY(stopNum) : "--";
+const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
 const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
-const targetVal = Number.isFinite(targetNum) ? formatCNY(targetNum) : "--";
+const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
 const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
 
 const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
@@ -2719,8 +2729,8 @@ const leftIsStop = Number.isFinite(stopNum) && epsEq(stopNum, baseMin);
 const leftIsLow  = hasDayRange && Number.isFinite(lowNum) && epsEq(lowNum, baseMin);
 const leftIsSupport = Number.isFinite(supportNum) && epsEq(supportNum, baseMin);
 
-const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑位" : "下界"));
-const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNY(lowNum) : (leftIsSupport ? formatCNY(supportNum) : formatCNY(baseMin)));
+const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑" : "下界"));
+const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNYNoSymbol(lowNum) : (leftIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMin)));
 const endLeftCls   = leftIsStop ? "risk" : "neutral";
 
 const rightIsTarget = Number.isFinite(targetNum) && epsEq(targetNum, baseMax);
@@ -2728,16 +2738,16 @@ const rightIsHigh   = hasDayRange && Number.isFinite(highNum) && epsEq(highNum, 
 const rightIsBreakout = Number.isFinite(breakoutNum) && epsEq(breakoutNum, baseMax);
 const rightIsSupport  = Number.isFinite(supportNum) && epsEq(supportNum, baseMax);
 
-const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破位" : (rightIsSupport ? "支撑位" : "上界")));
-const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNY(highNum) : (rightIsBreakout ? formatCNY(breakoutNum) : (rightIsSupport ? formatCNY(supportNum) : formatCNY(baseMax))));
+const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破" : (rightIsSupport ? "支撑" : "上界")));
+const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNYNoSymbol(highNum) : (rightIsBreakout ? formatCNYNoSymbol(breakoutNum) : (rightIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMax))));
 const endRightCls   = rightIsTarget ? "profit" : "neutral";
 
 // Strategy levels: show only the two nearest levels around current price as chips.
 // All other non-edge levels are rendered as tiny ticks (no capsules).
 const planLevels = [
   { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
-  { key:"support", cls:"amber", name:"支撑位", num: supportNum },
-  { key:"breakout",cls:"blue",  name:"突破位", num: breakoutNum },
+  { key:"support", cls:"amber", name:"支撑", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
   { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
   { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
 ].filter(l => Number.isFinite(l.num) && l.num > 0);
@@ -2772,7 +2782,7 @@ if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
 const meterMarks = [];
 planLevels.forEach(lv => {
   if(selectedKeys.has(lv.key) && !isEdge(lv.num)){
-    meterMarks.push({ key: lv.key, cls: lv.cls, name: lv.name, value: formatCNY(lv.num), pos: posX(lv.num) });
+    meterMarks.push({ key: lv.key, cls: lv.cls, name: lv.name, value: formatCNYNoSymbol(lv.num), pos: posX(lv.num) });
   }
 });
 
@@ -2906,9 +2916,7 @@ card.innerHTML = `
             </div>
 
             <div class="card-bd">
-            <div class="note-row">
-              <div class="card-note" aria-expanded="false" title="${noteTitle}">${noteHtml}</div>
-            </div>
+            ${noteRowHtml}
 
             <div class="core-row">
               <div class="core-left">
@@ -3078,9 +3086,9 @@ card.innerHTML = `
       const lowNum = Number(it.low);
       const highNum = Number(it.high);
 
-      const stopVal = Number.isFinite(stopNum) ? formatCNY(stopNum) : "--";
+      const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
       const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
-      const targetVal = Number.isFinite(targetNum) ? formatCNY(targetNum) : "--";
+      const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
       const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
 
       const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
@@ -3093,8 +3101,8 @@ card.innerHTML = `
       const leftIsLow  = hasDayRange && Number.isFinite(lowNum) && epsEq(lowNum, baseMin);
       const leftIsSupport = Number.isFinite(supportNum) && epsEq(supportNum, baseMin);
 
-      const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑位" : "下界"));
-      const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNY(lowNum) : (leftIsSupport ? formatCNY(supportNum) : formatCNY(baseMin)));
+      const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑" : "下界"));
+      const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNYNoSymbol(lowNum) : (leftIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMin)));
       const endLeftCls   = leftIsStop ? "risk" : "neutral";
 
       const rightIsTarget = Number.isFinite(targetNum) && epsEq(targetNum, baseMax);
@@ -3102,8 +3110,8 @@ card.innerHTML = `
       const rightIsBreakout = Number.isFinite(breakoutNum) && epsEq(breakoutNum, baseMax);
       const rightIsSupport  = Number.isFinite(supportNum) && epsEq(supportNum, baseMax);
 
-      const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破位" : (rightIsSupport ? "支撑位" : "上界")));
-      const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNY(highNum) : (rightIsBreakout ? formatCNY(breakoutNum) : (rightIsSupport ? formatCNY(supportNum) : formatCNY(baseMax))));
+      const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破" : (rightIsSupport ? "支撑" : "上界")));
+      const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNYNoSymbol(highNum) : (rightIsBreakout ? formatCNYNoSymbol(breakoutNum) : (rightIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMax))));
       const endRightCls   = rightIsTarget ? "profit" : "neutral";
 
       const minEnd = meterWrap.querySelector('.meter-end[data-key="min"]');
@@ -3183,8 +3191,8 @@ card.innerHTML = `
 // All other non-edge levels are rendered as tiny ticks (no capsules).
 const planLevels = [
   { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
-  { key:"support", cls:"amber", name:"支撑位", num: supportNum },
-  { key:"breakout",cls:"blue",  name:"突破位", num: breakoutNum },
+  { key:"support", cls:"amber", name:"支撑", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
   { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
   { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
 ].filter(l => Number.isFinite(l.num) && l.num > 0);
@@ -3224,7 +3232,7 @@ const upsertChip = (key, cls, name, rawNum, wantChip) => {
   }
 
   const p = posX(rawNum);
-  const value = formatCNY(rawNum);
+  const value = formatCNYNoSymbol(rawNum);
 
   if(!el){
     const div = document.createElement("div");
@@ -3292,8 +3300,8 @@ const upsertTick = (key, cls, rawNum, wantTick) => {
 
 // Chips: only the two adjacent levels around current price
 if(!upsertChip("stop", "red", "止损", stopNum, selectedKeys.has("stop"))) return false;
-if(!upsertChip("support", "amber", "支撑位", supportNum, selectedKeys.has("support"))) return false;
-if(!upsertChip("breakout", "blue", "突破位", breakoutNum, selectedKeys.has("breakout"))) return false;
+if(!upsertChip("support", "amber", "支撑", supportNum, selectedKeys.has("support"))) return false;
+if(!upsertChip("breakout", "blue", "突破", breakoutNum, selectedKeys.has("breakout"))) return false;
 if(!upsertChip("tp1", "green", "止盈1", tp1Num, selectedKeys.has("tp1"))) return false;
 if(!upsertChip("tp2", "green", "止盈2", tp2Num, selectedKeys.has("tp2"))) return false;
 
@@ -3617,7 +3625,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         payload.type === "stop" ? "止损位" :
         payload.type === "tp2"  ? "止盈2" :
         payload.type === "tp1"  ? "止盈1" :
-        "突破位";
+        "突破";
 
       if(alertBody){
         alertBody.innerHTML = `现价 <b>${priceStr}</b> 达到 ${which} <b>${levelStr}</b> 价格位，请确认。`;
@@ -3920,7 +3928,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         return;
       }
       if(breakout !== null && !Number.isFinite(breakout)){
-        toast("突破位 请输入有效数字或留空");
+        toast("突破 请输入有效数字或留空");
         return;
       }
       if(tp2 !== null && !Number.isFinite(tp2)){
@@ -3931,22 +3939,22 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       // ----- Semantic ordering guards (avoid support/breakout inversion) -----
       // Expected: stop < support < breakout < tp1 < tp2 (breakout/tp2 optional)
       if(stop >= support){
-        toast("止损需要低于支撑位");
+        toast("止损需要低于支撑");
         if(fStop) fStop.focus();
         return;
       }
       if(tp1 <= support){
-        toast("止盈1 需要高于支撑位");
+        toast("止盈1 需要高于支撑");
         if(fTp1) fTp1.focus();
         return;
       }
       if(breakout !== null && breakout <= support){
-        toast("突破位需要高于支撑位（检测到可能填反）");
+        toast("突破需要高于支撑（检测到可能填反）");
         if(fBreakout) fBreakout.focus();
         return;
       }
       if(breakout !== null && tp1 <= breakout){
-        toast("止盈1 需要高于突破位");
+        toast("止盈1 需要高于突破");
         if(fTp1) fTp1.focus();
         return;
       }
