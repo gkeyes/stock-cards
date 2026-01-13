@@ -540,7 +540,8 @@
 
     .card-top{
       display:flex;
-      align-items:flex-start;
+      /* Center-align stock name/code with the right-side tool buttons */
+      align-items:center;
       justify-content:space-between;
       gap: 10px;
     }
@@ -566,6 +567,25 @@
       color: rgba(17,24,39,.55);
       letter-spacing: .2px;
       white-space: nowrap;
+    }
+
+    /* Clickable stock title (collapse/expand) — keep it visually as plain text */
+    .title-hit{
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .title-hit:focus-visible{
+      outline: 3px solid rgba(59,130,246,.35);
+      outline-offset: 3px;
+      border-radius: 10px;
     }
 
     .codes .big{
@@ -1281,6 +1301,8 @@
       gap: 4px;
       top: 14px;
       z-index: 2;
+      /* Keep the stem anchored while allowing chip side-shifts */
+      padding-top: 19px; /* stem(15px) + gap(4px) */
     }
     /* Capsule tick line: keep a visible white connector, 1.5x longer than non-adjacent ticks */
     .meter-mark::before{
@@ -1289,7 +1311,11 @@
       height: 15px; /* 1.5 * 10px (.meter-tick height) */
       border-radius: 999px;
       background: transparent;
-}
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+    }
 
     
 /* Capsule connector line color matches level class */
@@ -1401,7 +1427,7 @@
       z-index: 10;
       top: 0px;
     }
-    .meter-mark[data-side="T"] .mark-line{ height: 22px; }
+    .meter-mark[data-side="T"]::before{ height: 22px; }
     .meter-mark[data-side="T"] .mark-chip{
       transform: translateY(-100%);
       box-shadow: 0 -2px 5px rgba(0,0,0,0.08);
@@ -2839,7 +2865,7 @@ card.innerHTML = `
             <div class="card-top">
               <div class="codes">
                 <div class="title-row">
-                  <p class="big">${bigTitle}</p>
+	                  <button type="button" class="big title-hit" data-act="collapse" data-id="${it.id}" aria-label="${collapseLabel}" title="${collapseLabel}">${bigTitle}</button>
                   <span class="code">${escapeHtml(it.symbol)}</span>
                 </div>
               </div>
@@ -3399,8 +3425,16 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         if(card) card.classList.toggle("collapsed", next);
 
         const label = next ? "展开" : "折叠";
-        btn.title = label;
-        btn.setAttribute("aria-label", label);
+        // Sync both the chevron button and the clickable stock title (if present)
+        if(card){
+          card.querySelectorAll(`button[data-act="collapse"][data-id="${id}"]`).forEach(b => {
+            b.title = label;
+            b.setAttribute("aria-label", label);
+          });
+        }else{
+          btn.title = label;
+          btn.setAttribute("aria-label", label);
+        }
         updateCardsToggleUi();
         return;
       }
@@ -3893,6 +3927,30 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         toast("止盈2 请输入有效数字或留空");
         return;
       }
+
+      // ----- Semantic ordering guards (avoid support/breakout inversion) -----
+      // Expected: stop < support < breakout < tp1 < tp2 (breakout/tp2 optional)
+      if(stop >= support){
+        toast("止损需要低于支撑位");
+        if(fStop) fStop.focus();
+        return;
+      }
+      if(tp1 <= support){
+        toast("止盈1 需要高于支撑位");
+        if(fTp1) fTp1.focus();
+        return;
+      }
+      if(breakout !== null && breakout <= support){
+        toast("突破位需要高于支撑位（检测到可能填反）");
+        if(fBreakout) fBreakout.focus();
+        return;
+      }
+      if(breakout !== null && tp1 <= breakout){
+        toast("止盈1 需要高于突破位");
+        if(fTp1) fTp1.focus();
+        return;
+      }
+
       if(tp2 !== null && tp2 <= tp1){
         toast("止盈2 需要大于 止盈1（或留空）");
         return;
