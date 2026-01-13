@@ -374,6 +374,32 @@
       flex: 1 1 auto;
       min-width: 0;
     }
+
+    /* V5: show code next to title (compact) */
+    .title-row .name-pack{
+      flex: 1 1 auto;
+      min-width: 0;
+      display:flex;
+      align-items:baseline;
+      gap: 8px;
+    }
+    .title-row .name-pack .big{
+      /* V5: keep code visually close to title text (occupy the former blank space) */
+      flex: 0 1 auto;          /* do NOT stretch to full width */
+      min-width: 0;
+      display: inline-block;   /* allow content-sized width */
+      max-width: calc(100% - 56px); /* reserve space for the 6-digit code + gap */
+    }
+    .code-inline{
+      flex: 0 0 auto;
+      font-size: 10px; /* ~50% of 20px title */
+      color: var(--muted);
+      font-weight: 850;
+      letter-spacing: .3px;
+      font-variant-numeric: tabular-nums;
+      transform: translateY(-1px);
+      white-space: nowrap;
+    }
     .codes .big{
       font-size: 20px;
       font-weight: 900;
@@ -680,6 +706,20 @@
     .overlay.show{ display:flex; }
     #alertOverlay{ align-items:center; }
 
+    /* V5: pin Add/Edit modal to top; avoid moving with keyboard */
+    #overlay{
+      align-items:flex-start;
+      padding-top: calc(env(safe-area-inset-top) + 12px);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+      overflow:auto;
+    }
+    #overlay .modal{
+      max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+      display:flex;
+      flex-direction:column;
+    }
+    #overlay .modal-bd{ overflow:auto; }
+
     .modal{
       width: min(520px, 100%);
       background: #fff;
@@ -726,6 +766,20 @@
       display:grid;
       grid-template-columns: 1fr;
       gap: 10px;
+    }
+
+    /* V5: modal layout like screenshot (3 columns + 2 columns) */
+    .grid3, .grid2{
+      display:grid;
+      gap: 12px;
+    }
+    .grid3{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid2{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    /* Ultra-small screens: avoid squeezing inputs too hard */
+    @media (max-width: 340px){
+      .grid3{ grid-template-columns: 1fr; }
+      .grid2{ grid-template-columns: 1fr; }
     }
 
     .field{
@@ -911,7 +965,7 @@
           <input id="fNote" placeholder="写下计划/逻辑/风险点（可选）" maxlength="80" />
         </div>
 
-        <div class="grid">
+        <div class="grid3">
           <div class="field">
             <label>止损</label>
             <input id="fStop" inputmode="decimal" placeholder="12.00" />
@@ -924,6 +978,9 @@
             <label>突破位（可选）</label>
             <input id="fBreakout" inputmode="decimal" placeholder="16.00" />
           </div>
+        </div>
+
+        <div class="grid2" style="margin-top:12px;">
           <div class="field">
             <label>止盈1</label>
             <input id="fTp1" inputmode="decimal" placeholder="19.00" />
@@ -1726,7 +1783,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         card.id = "card-" + it.symbol;
 
         const bigTitle = it.name ? escapeHtml(it.name) : escapeHtml(it.symbol);
-        const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
+        const codeInlineHtml = it.name ? `<span class="code-inline">${escapeHtml(it.symbol)}</span>` : "";
         const noteText = String(it.note ?? "").trim();
         const noteTitle = noteText ? escapeHtml(noteText) : "";
         const noteHtml = noteText ? escapeHtml(noteText) : '<span class="note-ph">备注</span>';
@@ -1736,10 +1793,12 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
             <div class="card-top">
               <div class="codes">
                 <div class="title-row">
-                  <p class="big">${bigTitle}</p>
+                  <div class="name-pack">
+                    <p class="big">${bigTitle}</p>
+                    ${codeInlineHtml}
+                  </div>
                   <div class="chg-badge ${chgClass}" title="涨跌幅">${escapeHtml(chgText)}</div>
                 </div>
-                <p class="small">${sub}</p>
               </div>
               <div class="card-tools">
                 <button class="tool sort-only" data-act="moveUp" data-id="${it.id}" aria-label="Move Up" title="上移">
