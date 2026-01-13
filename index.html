@@ -1093,6 +1093,7 @@
       font-weight: 900;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      display: none; /* hide % change (user preference) */
     }
     .core-change.up{ color: var(--red); }
     .core-change.down{ color: var(--green-deep); }
@@ -1294,6 +1295,26 @@
     .meter-mark.amber .mark-line{ background: rgba(245,158,11,.55); }
     .meter-mark.blue  .mark-line{ background: rgba(59,130,246,.55); }
     .meter-mark.green .mark-line{ background: rgba(16,185,129,.55); }
+    .meter-mark.red   .mark-line{ background: rgba(239,68,68,.55); }
+
+    /* --- Tiny ticks for non-adjacent strategy levels (no capsules) --- */
+    .meter-tick{
+      position: absolute;
+      top: 18px;
+      width: 3px;
+      height: 10px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: rgba(17,24,39,.20);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .meter-tick.compact{ display:none; }
+    .meter-tick.amber{ background: rgba(245,158,11,.35); }
+    .meter-tick.blue{  background: rgba(59,130,246,.35); }
+    .meter-tick.green{ background: rgba(16,185,129,.32); }
+    .meter-tick.red{   background: rgba(239,68,68,.32); }
+
 
     .meter-mark .mark-chip{
       display:flex;
@@ -2662,11 +2683,49 @@ const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (r
 const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNY(highNum) : (rightIsBreakout ? formatCNY(breakoutNum) : (rightIsSupport ? formatCNY(supportNum) : formatCNY(baseMax))));
 const endRightCls   = rightIsTarget ? "profit" : "neutral";
 
-// Mid markers (support / breakout / tp1) — hide chips if they are already represented by the two end extremes
+// Strategy levels: show only the two nearest levels around current price as chips.
+// All other non-edge levels are rendered as tiny ticks (no capsules).
+const planLevels = [
+  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
+  { key:"support", cls:"amber", name:"支撑位", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破位", num: breakoutNum },
+  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
+  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
+].filter(l => Number.isFinite(l.num) && l.num > 0);
+
+planLevels.sort((a,b)=>a.num-b.num);
+
+const le = (a,b)=> a < b || epsEq(a,b);
+const ge = (a,b)=> a > b || epsEq(a,b);
+
+let leftLv = null;
+let rightLv = null;
+
+for(const lv of planLevels){
+  if(le(lv.num, cur)) leftLv = lv;
+  if(!rightLv && ge(lv.num, cur)) rightLv = lv;
+}
+
+// If current price lands exactly on a level, try to show the next distinct level on the other side.
+if(leftLv && rightLv && leftLv.key === rightLv.key){
+  const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
+  if(idx >= 0){
+    if(planLevels[idx+1]) rightLv = planLevels[idx+1];
+    else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
+  }
+}
+
+const selectedKeys = new Set();
+if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
+if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
+
+// Chips (max 2)
 const meterMarks = [];
-if(Number.isFinite(supportNum) && !isEdge(supportNum)) meterMarks.push({ key:"support", cls: "amber", name: "支撑位", value: formatCNY(supportNum), pos: posX(supportNum) });
-if(Number.isFinite(breakoutNum) && !isEdge(breakoutNum)) meterMarks.push({ key:"breakout", cls: "blue",  name: "突破位", value: formatCNY(breakoutNum), pos: posX(breakoutNum) });
-if(Number.isFinite(tp1Num) && !isEdge(tp1Num))          meterMarks.push({ key:"tp1", cls: "green", name: "止盈1", value: formatCNY(tp1Num), pos: posX(tp1Num) });
+planLevels.forEach(lv => {
+  if(selectedKeys.has(lv.key) && !isEdge(lv.num)){
+    meterMarks.push({ key: lv.key, cls: lv.cls, name: lv.name, value: formatCNY(lv.num), pos: posX(lv.num) });
+  }
+});
 
 meterMarks.sort((a,b)=>a.pos-b.pos);
 
@@ -2702,6 +2761,15 @@ meterMarks.forEach(m => {
   m.compact = (m.pos < 1 || m.pos > 99);
 });
 
+// Tiny ticks for non-adjacent levels
+const meterTickHtml = planLevels
+  .filter(lv => !selectedKeys.has(lv.key) && !isEdge(lv.num))
+  .map(lv => {
+    const p = posX(lv.num);
+    const compact = (p < 1 || p > 99);
+    return `<div class="meter-tick ${lv.cls} ${compact ? 'compact' : ''}" data-key="${lv.key || ''}" style="left:${p}%"></div>`;
+  }).join("");
+
 const meterMarkHtml = meterMarks.map(m => `
   <div class="meter-mark ${m.cls} ${m.compact ? 'compact' : ''}" data-key="${m.key || ''}" data-side="${m.side || 'C'}" style="left:${m.pos}%">
     <div class="mark-line"></div>
@@ -2721,6 +2789,8 @@ const meterHtml = rangeOk ? `
     </div>
 
     ${bracketHtml}
+
+    ${meterTickHtml}
 
     ${meterMarkHtml}
 
@@ -3061,52 +3131,129 @@ card.innerHTML = `
         layer.remove();
       }
 
-      // Strategy marks (support / breakout / tp1) — hide chips if they are already represented by the two end extremes
-      const upsertMark = (key, cls, name, rawNum) => {
-        const el = meterWrap.querySelector(`.meter-mark[data-key="${key}"]`);
-        const show = Number.isFinite(rawNum) && !isEdge(rawNum);
+      // Strategy levels: show only the two nearest levels around current price as chips.
+// All other non-edge levels are rendered as tiny ticks (no capsules).
+const planLevels = [
+  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
+  { key:"support", cls:"amber", name:"支撑位", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破位", num: breakoutNum },
+  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
+  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
+].filter(l => Number.isFinite(l.num) && l.num > 0);
 
-        if(!show){
-          if(el) el.remove();
-          return true;
-        }
+planLevels.sort((a,b)=>a.num-b.num);
 
-        const p = posX(rawNum);
-        const value = formatCNY(rawNum);
+const le = (a,b)=> a < b || epsEq(a,b);
+const ge = (a,b)=> a > b || epsEq(a,b);
 
-        if(!el){
-          const div = document.createElement("div");
-          div.className = `meter-mark ${cls}`;
-          div.dataset.key = key;
-          div.dataset.side = "C";
-          div.style.left = `${p}%`;
-          div.innerHTML = `
-            <div class="mark-line"></div>
-            <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
-              <div class="chip-l">${escapeHtml(name)}</div>
-              <div class="chip-v">${escapeHtml(value)}</div>
-            </div>
-          `;
-          const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
-          if(anchor) meterWrap.insertBefore(div, anchor);
-          else meterWrap.appendChild(div);
-          return true;
-        }
+let leftLv = null;
+let rightLv = null;
 
-        el.className = `meter-mark ${cls}`;
-        el.style.left = `${p}%`;
-        const l = el.querySelector(".chip-l");
-        const v = el.querySelector(".chip-v");
-        if(l) l.textContent = name;
-        if(v) v.textContent = value;
-        return true;
-      };
+for(const lv of planLevels){
+  if(le(lv.num, cur)) leftLv = lv;
+  if(!rightLv && ge(lv.num, cur)) rightLv = lv;
+}
 
-      if(!upsertMark("support", "amber", "支撑位", Number(it.support))) return false;
-      if(!upsertMark("breakout", "blue", "突破位", Number(it.breakout))) return false;
-      if(!upsertMark("tp1", "green", "止盈1", Number(it.tp1))) return false;
+if(leftLv && rightLv && leftLv.key === rightLv.key){
+  const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
+  if(idx >= 0){
+    if(planLevels[idx+1]) rightLv = planLevels[idx+1];
+    else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
+  }
+}
 
-      // Recompute mark side-split after updates (avoid overlap on incremental refresh)
+const selectedKeys = new Set();
+if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
+if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
+
+const upsertChip = (key, cls, name, rawNum, wantChip) => {
+  const el = meterWrap.querySelector(`.meter-mark[data-key="${key}"]`);
+  const show = wantChip && Number.isFinite(rawNum) && !isEdge(rawNum);
+
+  if(!show){
+    if(el) el.remove();
+    return true;
+  }
+
+  const p = posX(rawNum);
+  const value = formatCNY(rawNum);
+
+  if(!el){
+    const div = document.createElement("div");
+    div.className = `meter-mark ${cls}`;
+    div.dataset.key = key;
+    div.dataset.side = "C";
+    div.style.left = `${p}%`;
+    div.innerHTML = `
+      <div class="mark-line"></div>
+      <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
+        <div class="chip-l">${escapeHtml(name)}</div>
+        <div class="chip-v">${escapeHtml(value)}</div>
+      </div>
+    `;
+    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
+    if(anchor) meterWrap.insertBefore(div, anchor);
+    else meterWrap.appendChild(div);
+    return true;
+  }
+
+  el.className = `meter-mark ${cls}`;
+  el.style.left = `${p}%`;
+  const l = el.querySelector(".chip-l");
+  const v = el.querySelector(".chip-v");
+  if(l) l.textContent = name;
+  if(v) v.textContent = value;
+  return true;
+};
+
+const upsertTick = (key, cls, rawNum, wantTick) => {
+  const el = meterWrap.querySelector(`.meter-tick[data-key="${key}"]`);
+  const show = wantTick && Number.isFinite(rawNum) && !isEdge(rawNum);
+
+  if(!show){
+    if(el) el.remove();
+    return true;
+  }
+
+  const p = posX(rawNum);
+  const compact = (p < 1 || p > 99);
+  if(compact){
+    if(el) el.remove();
+    return true;
+  }
+
+  if(!el){
+    const div = document.createElement("div");
+    div.className = `meter-tick ${cls}`;
+    div.dataset.key = key;
+    div.style.left = `${p}%`;
+    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
+    if(anchor) meterWrap.insertBefore(div, anchor);
+    else meterWrap.appendChild(div);
+    return true;
+  }
+
+  el.className = `meter-tick ${cls}`;
+  el.style.left = `${p}%`;
+  el.classList.toggle("compact", compact);
+  return true;
+};
+
+// Chips: only the two adjacent levels around current price
+if(!upsertChip("stop", "red", "止损", stopNum, selectedKeys.has("stop"))) return false;
+if(!upsertChip("support", "amber", "支撑位", supportNum, selectedKeys.has("support"))) return false;
+if(!upsertChip("breakout", "blue", "突破位", breakoutNum, selectedKeys.has("breakout"))) return false;
+if(!upsertChip("tp1", "green", "止盈1", tp1Num, selectedKeys.has("tp1"))) return false;
+if(!upsertChip("tp2", "green", "止盈2", tp2Num, selectedKeys.has("tp2"))) return false;
+
+// Ticks: all other non-adjacent levels
+if(!upsertTick("stop", "red", stopNum, !selectedKeys.has("stop"))) return false;
+if(!upsertTick("support", "amber", supportNum, !selectedKeys.has("support"))) return false;
+if(!upsertTick("breakout", "blue", breakoutNum, !selectedKeys.has("breakout"))) return false;
+if(!upsertTick("tp1", "green", tp1Num, !selectedKeys.has("tp1"))) return false;
+if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
+
+// Recompute mark side-split after updates (avoid overlap on incremental refresh)
       const markEls = Array.from(meterWrap.querySelectorAll(".meter-mark")).map(el => {
         const pos = Number(String(el.style.left || "").replace("%",""));
         return { el, pos: Number.isFinite(pos) ? pos : 0, side: "C" };
