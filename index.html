@@ -10,7 +10,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=0.8, minimum-scale=0.8, maximum-scale=0.8, user-scalable=no, viewport-fit=cover" />
   <title>股票策略卡</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-  <meta name="theme-color" content="#f4f6fb" />
+  <meta id="metaThemeColor" name="theme-color" content="#f4f6fb" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="股票策略卡" />
@@ -42,6 +42,146 @@
 
       --divider: rgba(17,24,39,.06);
     }
+    :root[data-theme="amoled"]{
+      --bg: #000000;
+      --card: #0b0b0b;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --shadow: none;
+
+      --divider: rgba(255,255,255,.08);
+
+      --pill-red-bg: rgba(239,68,68,.18);
+      --pill-amber-bg: rgba(245,158,11,.18);
+      --pill-green-bg: rgba(16,185,129,.16);
+      --pill-blue-bg: rgba(59,130,246,.18);
+
+      --pill-red-text: #fecaca;
+      --pill-amber-text: #fde68a;
+      --pill-green-text: #a7f3d0;
+      --pill-blue-text: #bfdbfe;
+    }
+
+    :root[data-theme="amoled"] .overlay{
+      background: rgba(0,0,0,.72);
+    }
+
+    :root[data-theme="amoled"] .dash,
+    :root[data-theme="amoled"] .card{
+      background: var(--card) !important;
+      border-color: rgba(255,255,255,.10) !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+    }
+
+    :root[data-theme="amoled"] .modal{
+      background: var(--card) !important;
+      box-shadow: 0 20px 60px rgba(0,0,0,.55) !important;
+    }
+
+
+    /* AMOLED: improve visibility of cards + cards header */
+    :root[data-theme="amoled"] .card{
+      background: #101010 !important; /* slightly brighter than --bg for separation */
+      border-color: rgba(255,255,255,.16) !important;
+    }
+    :root[data-theme="amoled"] .cards-title{
+      color: rgba(229,231,235,.72);
+    }
+    :root[data-theme="amoled"] .cards-toggle{
+      background: rgba(11,11,11,.92);
+      border-color: rgba(255,255,255,.16);
+      color: rgba(229,231,235,.85);
+    }
+
+    :root[data-theme="amoled"] .dash-toggle{
+      background: rgba(255,255,255,.10) !important;
+      box-shadow: none !important;
+    }
+
+    :root[data-theme="amoled"] .meter-track{
+      background: rgba(255,255,255,.10) !important;
+    }
+
+    :root[data-theme="amoled"] .meter-invalid{
+      background: rgba(255,255,255,.06) !important;
+    }
+
+    :root[data-theme="amoled"] .tool,
+    :root[data-theme="amoled"] .refresh-mini{
+      background: rgba(255,255,255,.06) !important;
+      border-color: rgba(255,255,255,.12) !important;
+    }
+
+    :root[data-theme="amoled"] .stats-grid{
+      border-top-color: rgba(255,255,255,.10) !important;
+    }
+
+    :root[data-theme="amoled"] .dp{
+      border-right-color: rgba(255,255,255,.10) !important;
+      border-bottom-color: rgba(255,255,255,.10) !important;
+    }
+    :root[data-theme="amoled"] .dp .dp-l{
+      color: rgba(229,231,235,.60) !important;
+    }
+
+    :root[data-theme="amoled"] .btn2.ghost{
+      background: rgba(255,255,255,.10) !important;
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="amoled"] .d-avg,
+    :root[data-theme="amoled"] .d-dur,
+    :root[data-theme="amoled"] .chg-badge.flat,
+    :root[data-theme="amoled"] .status.muted{
+      background: rgba(255,255,255,.08) !important;
+    }
+
+    :root[data-theme="amoled"] .dash-row:active{
+      background: rgba(255,255,255,.06) !important;
+    }
+
+    :root[data-theme="amoled"] .rank-arrow.flat{
+      color: rgba(229,231,235,.28) !important;
+    }
+
+    :root[data-theme="amoled"] .switch .slider{
+      background: rgba(255,255,255,.14) !important;
+    }
+
+    :root[data-theme="amoled"] .title-row .code{
+      color: rgba(229,231,235,.55) !important;
+    }
+
+    :root[data-theme="amoled"] .range-bracket{
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.14) !important;
+    }
+
+        :root[data-theme="amoled"] .meter-end .end-line{
+      background: rgba(229,231,235,.22) !important;
+    }
+    :root[data-theme="amoled"] .meter-end .end-label{
+      color: rgba(229,231,235,.65) !important;
+    }
+
+    :root[data-theme="amoled"] .meter-mark .mark-line{
+      background: rgba(229,231,235,.22);
+    }
+
+    :root[data-theme="amoled"] .meter-mark .mark-chip{
+      background: rgba(11,11,11,.92) !important;
+      border-color: rgba(255,255,255,.12) !important;
+    }
+
+        :root[data-theme="amoled"] .meter-cursor:not(.up):not(.down) .dot{
+      background: rgba(255,255,255,.55) !important;
+    }
+
+    :root[data-theme="amoled"] .meter-cursor:not(.up):not(.down) .tri{
+      border-top-color: rgba(229,231,235,.70);
+    }
+
 *{ box-sizing: border-box; }
     html,body{ height:100%; overflow-x: hidden; }
     body{
@@ -223,6 +363,46 @@
     .dash-bd{ margin-top: 8px; display:block; }
     .dash.collapsed .dash-bd{ display:none; }
 
+    /* Cards header (bulk collapse/expand) */
+    .cards-hd{
+      margin: 14px 0; /* spacer between dashboard and cards (vertical centering) */
+      display:flex;
+      align-items:center;
+      justify-content: flex-start;
+      position: relative;
+      min-height: 56px;
+    }
+    .cards-title{
+      font-size: 14px;
+      font-weight: 950;
+      color: var(--muted);
+      letter-spacing: .2px;
+    }
+    .cards-toggle{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(17,24,39,.10);
+      background: #fff;
+      color: rgba(17,24,39,.72);
+      font-weight: 900;
+      cursor:pointer;
+      user-select:none;
+
+      /* Center in the gap row (both X and Y) */
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .cards-toggle:active{ transform: translate(-50%, -50%) translateY(1px); }
+    .cards-toggle:disabled{ opacity: .5; cursor: not-allowed; }
+    .cards-toggle svg{ width: 18px; height: 18px; transition: transform .15s ease; }
+    .cards-toggle.collapsed svg{ transform: rotate(180deg); }
+
+
     .dash-section{ margin-top: 10px; }
     .dash-section:first-child{ margin-top: 0; }
 
@@ -342,6 +522,7 @@
 
 
     .card{
+      font-variant-numeric: tabular-nums;
       background: rgba(255,255,255,.85);
       backdrop-filter: blur(10px);
       border-radius: var(--radius);
@@ -351,17 +532,20 @@
       margin-bottom: 10px;
     }
     .card-inner{ padding: 10px; }
+    /* Card collapse (like dashboard): keep header visible, hide the body */
+    .card-bd{ display:block; }
+    .card.collapsed .card-bd{ display:none; }
+    .tool.collapse svg{ transition: transform .15s ease; transform-origin: 50% 50%; }
+    .card:not(.collapsed) .tool.collapse svg{ transform: rotate(180deg); }
 
     .card-top{
       display:flex;
-      align-items:flex-start;
+      /* Center-align stock name/code with the right-side tool buttons */
+      align-items:center;
       justify-content:space-between;
       gap: 10px;
     }
-    .codes{
-      flex: 1 1 auto;
-      min-width: 0;
-    }
+    .codes{ flex: 1 1 auto; min-width: 0; }
 
     /* Title row: Name + Change badge (Template A) */
     .title-row{
@@ -371,35 +555,39 @@
       min-width: 0;
     }
     .title-row .big{
-      flex: 1 1 auto;
+      /* keep code close to name (avoid pushing it to the far right) */
+      flex: 0 1 auto;
       min-width: 0;
+      max-width: calc(100% - 72px);
     }
-
-    /* V5: show code next to title (compact) */
-    .title-row .name-pack{
-      flex: 1 1 auto;
-      min-width: 0;
-      display:flex;
-      align-items:baseline;
-      gap: 8px;
-    }
-    .title-row .name-pack .big{
-      /* V5: keep code visually close to title text (occupy the former blank space) */
-      flex: 0 1 auto;          /* do NOT stretch to full width */
-      min-width: 0;
-      display: inline-block;   /* allow content-sized width */
-      max-width: calc(100% - 56px); /* reserve space for the 6-digit code + gap */
-    }
-    .code-inline{
+    .title-row .code{
       flex: 0 0 auto;
-      font-size: 10px; /* ~50% of 20px title */
-      color: var(--muted);
+      font-size: 13px;
       font-weight: 850;
-      letter-spacing: .3px;
-      font-variant-numeric: tabular-nums;
-      transform: translateY(-1px);
+      color: rgba(17,24,39,.55);
+      letter-spacing: .2px;
       white-space: nowrap;
     }
+
+    /* Clickable stock title (collapse/expand) — keep it visually as plain text */
+    .title-hit{
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .title-hit:focus-visible{
+      outline: 3px solid rgba(59,130,246,.35);
+      outline-offset: 3px;
+      border-radius: 10px;
+    }
+
     .codes .big{
       font-size: 20px;
       font-weight: 900;
@@ -443,27 +631,33 @@
     .chg-badge.flat{ background: rgba(17,24,39,.06); color: var(--muted); }
 
 
-    /* Card note box (备注). */
+    /* Note bar (备注) — Template A: full-width horizontal bar */
     .note-row{ margin-top: 8px; }
-
-    /* Card note box (备注) — Template A: placed under header, 2-line clamp */
     .card-note{
       width: 100%;
-      min-height: 34px;
-      padding: 8px 10px;
-      border-radius: 14px;
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 999px;
       border: 1px solid rgba(17,24,39,.08);
-      background: rgba(255,255,255,.72);
+      background: rgba(17,24,39,.04);
       color: var(--text);
       font-size: 12px;
-      line-height: 1.25;
+      line-height: 1.2;
+      display:flex;
+      align-items:center;
       overflow: hidden;
-      text-overflow: clip;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .card-note{ cursor: pointer; }
+    .card-note.expanded{
+      border-radius: 16px;
+      display: block;
+      padding: 10px 12px;
+      min-height: unset;
       white-space: normal;
-      word-break: break-word;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      overflow: visible;
+      text-overflow: clip;
     }
     .card-note .note-ph{
       color: var(--muted);
@@ -649,7 +843,7 @@
     .pill{
       display:flex;
       flex-direction:column;
-      gap: 1px;
+      gap: 2px;
       padding: 7px 10px;
       border-radius: 14px;
       min-width: 0;
@@ -685,7 +879,7 @@
       white-space: nowrap;
     }
 
-        .pills.cols-5 .pill .v{
+    .pills.cols-5 .pill .v{
       font-size: clamp(13px, 3.0vw, 18px);
     }
     .pill.red{ background: var(--pill-red-bg); color: var(--pill-red-text); }
@@ -698,27 +892,24 @@
       inset: 0;
       background: rgba(17,24,39,.45);
       display:none;
-      align-items:flex-end;
+      align-items:center;
       justify-content:center;
-      padding: 18px;
+      padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
       z-index: 50;
     }
     .overlay.show{ display:flex; }
     #alertOverlay{ align-items:center; }
 
-    /* V5: pin Add/Edit modal to top; avoid moving with keyboard */
+
+    /* Stock edit/add overlay: pin modal to top so keyboard is less likely to cover it */
     #overlay{
       align-items:flex-start;
-      padding-top: calc(env(safe-area-inset-top) + 12px);
-      padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
-      overflow:auto;
+      padding-top: calc(18px + env(safe-area-inset-top));
     }
     #overlay .modal{
-      max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-      display:flex;
-      flex-direction:column;
+      margin-top: 0;
     }
-    #overlay .modal-bd{ overflow:auto; }
+
 
     .modal{
       width: min(520px, 100%);
@@ -726,6 +917,9 @@
       border-radius: 22px;
       box-shadow: 0 20px 60px rgba(17,24,39,.25);
       overflow:hidden;
+      max-height: calc(100dvh - 44px);
+      display:flex;
+      flex-direction: column;
     }
     .modal-hd{
       padding: 14px 16px;
@@ -759,6 +953,8 @@
     #alertTitle .alert-tp2{ color: var(--pill-green-text); }
     .modal-bd{
       padding: 14px 16px 6px 16px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* Make form single-column for phones */
@@ -768,18 +964,19 @@
       gap: 10px;
     }
 
-    /* V5: modal layout like screenshot (3 columns + 2 columns) */
-    .grid3, .grid2{
-      display:grid;
-      gap: 12px;
+    /* Threshold inputs: 3 + 2 compact layout (desktop/mobile), fallback to single-column on very small screens */
+    .grid.grid-thresh{
+      grid-template-columns: repeat(6, minmax(0,1fr));
     }
-    .grid3{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid2{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-    /* Ultra-small screens: avoid squeezing inputs too hard */
-    @media (max-width: 340px){
-      .grid3{ grid-template-columns: 1fr; }
-      .grid2{ grid-template-columns: 1fr; }
+    .grid.grid-thresh .field{ margin-bottom: 0; }
+    .grid.grid-thresh .field:nth-child(1),
+    .grid.grid-thresh .field:nth-child(2),
+    .grid.grid-thresh .field:nth-child(3){ grid-column: span 2; }
+    .grid.grid-thresh .field:nth-child(4),
+    .grid.grid-thresh .field:nth-child(5){ grid-column: span 3; }
+    @media (max-width: 380px){
+      .grid.grid-thresh{ grid-template-columns: 1fr; }
+      .grid.grid-thresh .field{ grid-column: auto; }
     }
 
     .field{
@@ -874,6 +1071,464 @@
     }
 
     svg{ width:18px; height:18px; }
+  
+    /* ===== Template A++ (Modern): Core price + Visual Meter ===== */
+    .core-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .core-left{ min-width: 0; }
+    .core-left .label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 750;
+      margin-bottom: 4px;
+    }
+    .core-line{
+      display:flex;
+      align-items:baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .core-price{
+      font-size: 28px;
+      font-weight: 950;
+      letter-spacing: -0.4px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .core-price.up{ color: var(--red); }
+    .core-price.down{ color: var(--green-deep); }
+    .core-price.flat{ color: var(--text); }
+
+    .core-change{
+      font-size: 16px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      display: none; /* hide % change (user preference) */
+    }
+    .core-change.up{ color: var(--red); }
+    .core-change.down{ color: var(--green-deep); }
+    .core-change.flat{ color: var(--muted); }
+
+    .updated-row{
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .core-right{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-self: center;
+    }
+    .core-right .updated-row{
+      margin-top: 0;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-weight: 850;
+      font-size: 12px;
+      white-space: nowrap;
+      background: var(--pill-amber-bg);
+      color: var(--pill-amber-text);
+    }
+    .status-pill.red{ background: var(--pill-red-bg); color: var(--pill-red-text); }
+    .status-pill.amber{ background: var(--pill-amber-bg); color: var(--pill-amber-text); }
+    .status-pill.blue{ background: var(--pill-blue-bg); color: var(--pill-blue-text); }
+    .status-pill.green{ background: var(--pill-green-bg); color: var(--pill-green-text); }
+
+    .pulse-dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: .9;
+      box-shadow: 0 0 0 0 rgba(17,24,39,.0);
+      animation: pulse 1.4s infinite;
+      flex: 0 0 auto;
+    }
+    @keyframes pulse{
+      0%   { transform: scale(0.9); opacity: .75; box-shadow: 0 0 0 0 rgba(17,24,39,.00); }
+      70%  { transform: scale(1.12); opacity: 1;  box-shadow: 0 0 0 8px rgba(17,24,39,.06); }
+      100% { transform: scale(0.9); opacity: .75; box-shadow: 0 0 0 0 rgba(17,24,39,.00); }
+    }
+
+    /* Visual meter */
+    .meter-wrap{
+      position: relative;
+      margin-top: 16px;
+      padding: 24px 8px 34px; /* top right bottom left: extra bottom space for end labels */
+      --meter-pad: 6; /* % per side: invalid zone padding */
+    }
+    .meter-track{
+      height: 8px;
+      background: rgba(17,24,39,.08);
+      border-radius: 999px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .meter-invalid{
+      position:absolute;
+      top:0;
+      height:100%;
+      width: calc(var(--meter-pad) * 1%);
+      background: rgba(17,24,39,.06);
+      pointer-events:none;
+      z-index: 0;
+    }
+    .meter-invalid.left{ left:0; border-radius: 999px 0 0 999px; }
+    .meter-invalid.right{ right:0; border-radius: 0 999px 999px 0; }
+
+
+    /* Intraday low-high bracket (冖): visualizes today's range above the meter */
+    .range-bracket-layer{
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 0px;
+      height: 12px;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .range-bracket{
+      position: absolute;
+      top: 2px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(17,24,39,.12);
+      border: 1px solid rgba(17,24,39,.14);
+    }
+    .range-avg-tick{
+      position:absolute;
+      top: 1px;
+      width: 3px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(245,158,11,.92);
+      box-shadow: 0 0 0 1px rgba(17,24,39,.10);
+      z-index: 4;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .meter-fill{
+      position:absolute;
+      left:0;
+      top:0;
+      height:100%;
+      border-radius: 999px;
+      opacity: .22;
+      z-index: 1;
+    }
+    .meter-fill.up{ background: var(--red); }
+    .meter-fill.down{ background: var(--green-deep); }
+    .meter-fill.flat{ background: rgba(17,24,39,.30); }
+
+    /* --- Tighter endpoints: move labels up and pin to both sides --- */
+    .meter-end{
+      position: absolute;
+      top: auto;    /* unpin from top */
+      bottom: 4px;  /* pin to container bottom */
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      pointer-events: none;
+      z-index: 1; /* keep below floating marks */
+      background: transparent;
+      padding: 0;
+      border-radius: 4px;
+    }
+
+    .meter-end.left{
+      left: 0 !important;
+      transform: none !important;
+      align-items: flex-start;
+    }
+
+    .meter-end.right{
+      right: 0 !important;
+      left: auto !important;
+      transform: none !important;
+      align-items: flex-end;
+    }
+
+    /* Hide the original stem line (tick is no longer meaningful once pinned to sides) */
+    .meter-end .end-line{ display: none; }
+
+    .meter-end .end-label{
+      font-size: 10px;
+      color: rgba(17,24,39,.45);
+      font-weight: 700;
+      margin-bottom: 0;
+      line-height: 1.2;
+    }
+
+    .meter-end .end-val{
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .meter-end .end-val.risk{ color: var(--pill-red-text); }
+    .meter-end .end-val.profit{ color: var(--pill-green-text); }
+    .meter-end .end-val.neutral{ color: var(--text); opacity: .92; }
+
+    .meter-mark{
+      position:absolute;
+      transform: translateX(-50%);
+      display:flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      top: 14px;
+      z-index: 2;
+      /* Keep the stem anchored while allowing chip side-shifts */
+      padding-top: 19px; /* stem(15px) + gap(4px) */
+    }
+    /* Capsule tick line: keep a visible white connector, 1.5x longer than non-adjacent ticks */
+    .meter-mark::before{
+      content:"";
+      width: 3px;
+      height: 15px; /* 1.5 * 10px (.meter-tick height) */
+      border-radius: 999px;
+      background: transparent;
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+    }
+
+    
+/* Capsule connector line color matches level class */
+.meter-mark.red::before{   background: rgba(239,68,68,.85); }
+.meter-mark.amber::before{ background: rgba(245,158,11,.85); }
+.meter-mark.blue::before{  background: rgba(59,130,246,.85); }
+.meter-mark.green::before{ background: rgba(16,185,129,.85); }
+
+.meter-mark[data-row="1"]{ top: 2px; }
+    .meter-mark .mark-line{
+      width: 4px;
+      height: 16px;
+      border-radius: 999px;
+      background: rgba(17,24,39,.25);
+    }
+    .meter-mark.amber .mark-line{ background: rgba(245,158,11,.55); }
+    .meter-mark.blue  .mark-line{ background: rgba(59,130,246,.55); }
+    .meter-mark.green .mark-line{ background: rgba(16,185,129,.55); }
+    .meter-mark.red   .mark-line{ background: rgba(239,68,68,.55); }
+
+    /* --- Tiny ticks for non-adjacent strategy levels (no capsules) --- */
+    .meter-tick{
+      position: absolute;
+      top: 18px;
+      width: 3px;
+      height: 10px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: rgba(17,24,39,.20);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .meter-tick.compact{ display:none; }
+    .meter-tick.amber{ background: rgba(245,158,11,.35); }
+    .meter-tick.blue{  background: rgba(59,130,246,.35); }
+    .meter-tick.green{ background: rgba(16,185,129,.32); }
+    .meter-tick.red{   background: rgba(239,68,68,.32); }
+
+
+    .meter-mark .mark-chip{
+      display:flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 5px 8px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.82);
+      border: 1px solid rgba(17,24,39,.10);
+      max-width: 96px;
+      min-width: 64px;
+      overflow: hidden;
+    }
+    .meter-mark .mark-chip .chip-l{
+      font-size: 11px;
+      font-weight: 850;
+      color: rgba(17,24,39,.62);
+      line-height: 1.05;
+      white-space: nowrap;
+      max-width: 100%;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .meter-mark .mark-chip .chip-v{
+      font-size: 12px;
+      font-weight: 950;
+      color: var(--text);
+      line-height: 1.05;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Chip text color matches tick color (stop/support/breakout/take-profit) */
+    .meter-mark.red   .mark-chip .chip-l,
+    .meter-mark.red   .mark-chip .chip-v{ color: rgba(239,68,68,.92) !important; }
+    .meter-mark.amber .mark-chip .chip-l,
+    .meter-mark.amber .mark-chip .chip-v{ color: rgba(245,158,11,.92) !important; }
+    .meter-mark.blue  .mark-chip .chip-l,
+    .meter-mark.blue  .mark-chip .chip-v{ color: rgba(59,130,246,.92) !important; }
+    .meter-mark.green .mark-chip .chip-l,
+    .meter-mark.green .mark-chip .chip-v{ color: rgba(16,185,129,.92) !important; }
+    .meter-mark.compact .mark-chip{ display:none; }
+
+    /* --- Meter mark side-split (L/R/T) to reduce overlap --- */
+    .meter-mark{
+      transition: left 0.3s ease;
+    }
+    .meter-mark .mark-chip{
+      transition: transform 0.2s ease;
+    }
+
+    .meter-mark[data-side="C"] .mark-chip{ transform: translateX(0); }
+
+    /* Shift chip to the left / right of the stem when crowded */
+    .meter-mark[data-side="L"]{ align-items: flex-end; }
+    .meter-mark[data-side="L"] .mark-chip{
+      transform: translateX(-40%);
+      border-bottom-right-radius: 0;
+    }
+
+    .meter-mark[data-side="R"]{ align-items: flex-start; }
+    .meter-mark[data-side="R"] .mark-chip{
+      transform: translateX(40%);
+      border-bottom-left-radius: 0;
+    }
+
+    /* 3-chain crowding: middle one goes above */
+    .meter-mark[data-side="T"]{
+      z-index: 10;
+      top: 0px;
+    }
+    .meter-mark[data-side="T"]::before{ height: 22px; }
+    .meter-mark[data-side="T"] .mark-chip{
+      transform: translateY(-100%);
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.08);
+    }
+
+    .meter-cursor{
+      position:absolute;
+      top: 0px;
+      transform: translateX(-50%);
+      display:flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 5;
+      transition: left .45s ease;
+      pointer-events: none;
+    }
+    .meter-cursor .tri{
+      width:0;height:0;
+      border-left:6px solid transparent;
+      border-right:6px solid transparent;
+      border-top:8px solid rgba(17,24,39,.45);
+    }
+    .meter-cursor.up .tri{ border-top-color: var(--red); }
+    .meter-cursor.down .tri{ border-top-color: var(--green-deep); }
+
+    .meter-cursor .dot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-top: -2px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.10);
+      border: 3px solid rgba(255,255,255,.95);
+      background: rgba(17,24,39,.55);
+    }
+    .meter-cursor.up .dot{ background: var(--red); }
+    .meter-cursor.down .dot{ background: var(--green-deep); }
+
+    .meter-cursor .bubble{
+      display: none;
+
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 950;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 1px 6px rgba(0,0,0,.10);
+      background: rgba(17,24,39,.55);
+      white-space: nowrap;
+    }
+    .meter-cursor.up .bubble{ background: var(--red); }
+    .meter-cursor.down .bubble{ background: var(--green-deep); }
+
+    /* Stats grid (4 columns) */
+    .stats-grid{
+      margin-top: 8px;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 0;
+      padding-top: 6px;
+      border-top: 1px solid rgba(17,24,39,.06);
+    }
+    .dp{
+      display:flex;
+      align-items: baseline;
+      justify-content: flex-start;
+      gap: 6px;
+      min-width: 0;
+      padding: 3px 8px;
+      border-right: 1px solid rgba(17,24,39,.06);
+      border-bottom: 1px solid rgba(17,24,39,.06);
+    }
+    .dp:nth-child(3n){ border-right: 0; }
+    .dp:nth-last-child(-n+3){ border-bottom: 0; }
+    .dp .dp-l{
+      font-size: 12px;
+      color: rgba(17,24,39,.62);
+      font-weight: 750;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .dp .dp-v{
+      margin-top: 0;
+      font-size: 13px;
+      font-weight: 950;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .dp.span2{ grid-column: span 2; }
+
+    @media (max-width: 420px){
+      .core-price{ font-size: 26px; }
+      .meter-mark .mark-chip{ max-width: 104px; }
+    }
+
   </style>
 </head>
 <body>
@@ -939,6 +1594,15 @@
       <div class="dash-bd" id="dashBody"></div>
     </div>
 
+    <div class="cards-hd" id="cardsHeader">
+      <button class="cards-toggle" id="cardsToggle" type="button" aria-label="全部折叠" title="全部折叠">
+        <span id="cardsToggleText">全部折叠</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"></path>
+        </svg>
+      </button>
+    </div>
+
     <div class="list" id="list"></div>
   </div>
 
@@ -957,37 +1621,34 @@
       <div class="modal-bd">
         <div class="field">
           <label>股票代码（6 位，如 000001 / 600000 / 430047）</label>
-          <input id="fSymbol" inputmode="numeric" placeholder="000001" maxlength="12" />
+          <input id="fSymbol" inputmode="numeric" placeholder="000001" maxlength="12"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         </div>
 
         <div class="field">
           <label>备注（可选）</label>
-          <input id="fNote" placeholder="写下计划/逻辑/风险点（可选）" maxlength="80" />
+          <input id="fNote" placeholder="写下计划/逻辑/风险点（可选）" maxlength="80"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         </div>
 
-        <div class="grid3">
+        <div class="grid grid-thresh">
           <div class="field">
             <label>止损</label>
-            <input id="fStop" inputmode="decimal" placeholder="12.00" />
+            <input id="fStop" inputmode="decimal" placeholder="12.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
             <label>支撑</label>
-            <input id="fSupport" inputmode="decimal" placeholder="14.00" />
+            <input id="fSupport" inputmode="decimal" placeholder="14.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>突破位（可选）</label>
-            <input id="fBreakout" inputmode="decimal" placeholder="16.00" />
+            <label>突破（可选）</label>
+            <input id="fBreakout" inputmode="decimal" placeholder="16.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
-        </div>
-
-        <div class="grid2" style="margin-top:12px;">
           <div class="field">
             <label>止盈1</label>
-            <input id="fTp1" inputmode="decimal" placeholder="19.00" />
+            <input id="fTp1" inputmode="decimal" placeholder="19.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
             <label>止盈2（可选）</label>
-            <input id="fTp2" inputmode="decimal" placeholder="22.00" />
+            <input id="fTp2" inputmode="decimal" placeholder="22.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
         </div>
       </div>
@@ -1034,11 +1695,25 @@
           <div style="min-width:0;">
             <div style="font-weight:900;">阈值弹窗通知</div>
             <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
-              当现价触发止损位/突破位时弹窗提醒（仅弹一次，直到你修改对应价位）。
+              当现价触发止损位/突破时弹窗提醒（仅弹一次，直到你修改对应价位）。
             </div>
           </div>
           <label class="switch" title="阈值弹窗通知">
             <input type="checkbox" id="alertToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+
+        <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="min-width:0;">
+            <div style="font-weight:900;">夜间模式（AMOLED）</div>
+            <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
+              纯黑背景；更省电/更护眼（未手动选择时可跟随系统深色模式）。
+            </div>
+          </div>
+          <label class="switch" title="夜间模式（AMOLED）">
+            <input type="checkbox" id="amoledToggle" />
             <span class="slider"></span>
           </label>
         </div>
@@ -1071,8 +1746,73 @@
   <script>
     // ---------- Data Layer ----------
     const LS_KEY = "strategy_cards_frontend_only_v3";
+    const LS_DRAFT_KEY = "strategy_cards_form_draft_v2";
     const LS_BG_REFRESH_KEY = "strategy_cards_bg_refresh_v1";
     const LS_DAY_KEY = "strategy_cards_last_seen_day_v1";
+
+    const METER_PAD_PCT = 0; // % per side for meter invalid zones
+
+    const LS_THEME_KEY = "strategy_cards_theme_v1";
+    const THEME_LIGHT = "light";
+    const THEME_AMOLED = "amoled";
+    const META_THEME_LIGHT = "#f4f6fb";
+    const META_THEME_AMOLED = "#000000";
+    let activeTheme = THEME_LIGHT;
+
+    function setMetaThemeColor(color){
+      const meta = document.getElementById("metaThemeColor") || document.querySelector('meta[name="theme-color"]');
+      if(meta) meta.setAttribute("content", color);
+    }
+    function applyTheme(theme){
+      const t = (theme === THEME_AMOLED) ? THEME_AMOLED : THEME_LIGHT;
+      activeTheme = t;
+      if(t === THEME_AMOLED){
+        document.documentElement.setAttribute("data-theme", THEME_AMOLED);
+        document.documentElement.style.colorScheme = "dark";
+        setMetaThemeColor(META_THEME_AMOLED);
+      }else{
+        document.documentElement.removeAttribute("data-theme");
+        document.documentElement.style.colorScheme = "light";
+        setMetaThemeColor(META_THEME_LIGHT);
+      }
+    }
+    function getSystemTheme(){
+      try{
+        return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? THEME_AMOLED : THEME_LIGHT;
+      }catch(_){
+        return THEME_LIGHT;
+      }
+    }
+    function initTheme(){
+      let pref = null;
+      try{ pref = localStorage.getItem(LS_THEME_KEY); }catch(_){ /* ignore */ }
+      if(pref !== THEME_AMOLED && pref !== THEME_LIGHT){
+        pref = getSystemTheme();
+      }
+      applyTheme(pref);
+
+      // Follow system only when user has not set a preference.
+      try{
+        const mql = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+        if(mql){
+          const handler = () => {
+            let saved = null;
+            try{ saved = localStorage.getItem(LS_THEME_KEY); }catch(_){ /* ignore */ }
+            if(saved !== THEME_AMOLED && saved !== THEME_LIGHT){
+              applyTheme(getSystemTheme());
+              const tgl = document.getElementById("amoledToggle");
+              if(tgl) tgl.checked = (activeTheme === THEME_AMOLED);
+            }
+          };
+          if(typeof mql.addEventListener === "function") mql.addEventListener("change", handler);
+          else if(typeof mql.addListener === "function") mql.addListener(handler);
+        }
+      }catch(_){ /* ignore */ }
+    }
+
+    initTheme();
+
+
 
     // Background refresh (best-effort; browsers/OS may still throttle in background)
     let allowBgRefresh = false;
@@ -1138,6 +1878,21 @@ function isAutoRefreshLocked(){
     function persist(){
       localStorage.setItem(LS_KEY, JSON.stringify(items));
     }
+
+    function loadDraft(){
+      try{
+        const raw = localStorage.getItem(LS_DRAFT_KEY);
+        if(!raw) return {};
+        const d = JSON.parse(raw);
+        return (d && typeof d === "object") ? d : {};
+      }catch(_){
+        return {};
+      }
+    }
+    function saveDraft(d){
+      try{ localStorage.setItem(LS_DRAFT_KEY, JSON.stringify(d)); }catch(_){}
+    }
+
     function nowTime(){
       const d = new Date();
       const hh = String(d.getHours()).padStart(2,"0");
@@ -1197,7 +1952,7 @@ function isAutoRefreshLocked(){
       alertAck = {};
       saveAlertAck();
       persist();
-      render();
+      updateValuesOnly();
       toast("已重置：状态 & 今日提醒记录");
     }
 
@@ -1206,6 +1961,11 @@ function isAutoRefreshLocked(){
       const x = Number(n);
       if(Number.isNaN(x)) return "¥0.00";
       return "¥" + x.toFixed(2);
+    }
+
+    // Same numeric formatting as formatCNY(), but without the RMB symbol prefix.
+    function formatCNYNoSymbol(n){
+      return formatCNY(n).replace(/^¥/, "");
     }
 
     function formatMaybeCNY(n){
@@ -1227,7 +1987,6 @@ function isAutoRefreshLocked(){
       const sign = pct > 0 ? "+" : "";
       return `${sign}${pct.toFixed(2)}%`;
     }
-
 
     // ---------- Quote API (Pure Frontend via script injection) ----------
     function toTencentMarketCode(symbol){
@@ -1371,7 +2130,88 @@ function isAutoRefreshLocked(){
     const dashBodyEl = document.getElementById("dashBody");
     const dashToggleEl = document.getElementById("dashToggle");
     const dashToggleTextEl = document.getElementById("dashToggleText");
+    const cardsToggleEl = document.getElementById("cardsToggle");
+    const cardsToggleTextEl = document.getElementById("cardsToggleText");
     const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
+    const LS_CARD_COLLAPSED = "stock-cards-card-collapsed-v1";
+    let cardCollapsedMap = null; // { [id]: 1 }
+
+    function loadCardCollapsed(){
+      if(cardCollapsedMap) return cardCollapsedMap;
+      try{
+        cardCollapsedMap = JSON.parse(localStorage.getItem(LS_CARD_COLLAPSED) || "{}") || {};
+      }catch(_){
+        cardCollapsedMap = {};
+      }
+      return cardCollapsedMap;
+    }
+    function saveCardCollapsed(){
+      try{ localStorage.setItem(LS_CARD_COLLAPSED, JSON.stringify(cardCollapsedMap || {})); }catch(_){}
+    }
+    function isCardCollapsed(id){
+      if(!id) return false;
+      const m = loadCardCollapsed();
+      return !!m[id];
+    }
+    function setCardCollapsed(id, v){
+      if(!id) return;
+      const m = loadCardCollapsed();
+      if(v) m[id] = 1;
+      else delete m[id];
+      saveCardCollapsed();
+    }
+
+    function updateCardsToggleUi(){
+      if(!cardsToggleEl || !cardsToggleTextEl) return;
+      const any = Array.isArray(items) && items.length > 0;
+      cardsToggleEl.disabled = !any;
+
+      if(!any){
+        cardsToggleTextEl.textContent = "全部折叠";
+        cardsToggleEl.classList.remove("collapsed");
+        cardsToggleEl.title = "全部折叠";
+        cardsToggleEl.setAttribute("aria-label", "全部折叠");
+        return;
+      }
+
+      const allCollapsed = items.every(it => isCardCollapsed(it.id));
+      const label = allCollapsed ? "全部展开" : "全部折叠";
+      cardsToggleTextEl.textContent = label;
+      cardsToggleEl.title = label;
+      cardsToggleEl.setAttribute("aria-label", label);
+      cardsToggleEl.classList.toggle("collapsed", allCollapsed);
+    }
+
+    function setAllCardsCollapsed(v){
+      if(!Array.isArray(items)) return;
+      for(const it of items){
+        setCardCollapsed(it.id, !!v);
+      }
+      // Update DOM (avoid full re-render)
+      document.querySelectorAll(".card").forEach(card => {
+        card.classList.toggle("collapsed", !!v);
+      });
+      // Sync per-card button labels
+      document.querySelectorAll('button.tool.collapse[data-id]').forEach(btn => {
+        const id = btn.dataset.id;
+        const c = isCardCollapsed(id);
+        const label = c ? "展开" : "折叠";
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+      });
+      updateCardsToggleUi();
+    }
+
+    function initCardsHeader(){
+      if(!cardsToggleEl) return;
+      updateCardsToggleUi();
+      cardsToggleEl.addEventListener("click", () => {
+        if(!Array.isArray(items) || items.length === 0) return;
+        const anyExpanded = items.some(it => !isCardCollapsed(it.id));
+        setAllCardsCollapsed(anyExpanded);
+      });
+    }
+
 
     const LS_BREAKOUT_TS = "stock-cards-breakout-ts-v1";
     let breakoutTS = null; // { [symbol]: { ts:number, day:string } }
@@ -1700,6 +2540,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     }
 
     initDashboard();
+    initCardsHeader();
 
 
     function escapeHtml(str){
@@ -1724,6 +2565,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     function render(){
       renderDashboard();
       listEl.innerHTML = "";
+      updateCardsToggleUi();
       if(items.length === 0){
         const empty = document.createElement("div");
         empty.style.padding = "14px 4px";
@@ -1764,40 +2606,277 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         }
         let chgClass = "flat";
         let chgText = "--";
+        let chgDisp = "--";
         if(Number.isFinite(chgPct)){
           if(chgPct > 1e-8) chgClass = "up";
           else if(chgPct < -1e-8) chgClass = "down";
           const sign = chgPct > 0 ? "+" : "";
           chgText = `${sign}${chgPct.toFixed(2)}%`;
+          chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
         }
-
 
         const stopDelta = formatDeltaPct(cur, it.stop);
         const supportDelta = formatDeltaPct(cur, it.support);
-        const breakoutDelta = hasBreakout ? formatDeltaPct(cur, it.breakout) : "--";
+        const breakoutDelta = Number.isFinite(it.breakout) ? formatDeltaPct(cur, it.breakout) : "--";
         const tp1Delta = formatDeltaPct(cur, it.tp1);
-        const tp2Delta = hasTp2 ? formatDeltaPct(cur, it.tp2) : "--";
+        const tp2Delta = Number.isFinite(it.tp2) ? formatDeltaPct(cur, it.tp2) : "--";
 
         const card = document.createElement("div");
-        card.className = "card";
+        const cardCollapsed = isCardCollapsed(it.id);
+        card.className = "card" + (cardCollapsed ? " collapsed" : "");
         card.id = "card-" + it.symbol;
 
         const bigTitle = it.name ? escapeHtml(it.name) : escapeHtml(it.symbol);
-        const codeInlineHtml = it.name ? `<span class="code-inline">${escapeHtml(it.symbol)}</span>` : "";
-        const noteText = String(it.note ?? "").trim();
+        const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
+        const noteText = String(it.note ?? "").replace(/\s+/g, " ").trim();
         const noteTitle = noteText ? escapeHtml(noteText) : "";
-        const noteHtml = noteText ? escapeHtml(noteText) : '<span class="note-ph">备注</span>';
+        const noteHtml = noteText ? escapeHtml(noteText) : "";
+        const noteRowHtml = noteText ? `
+            <div class="note-row">
+              <div class="card-note" aria-expanded="false" title="${noteTitle}">${noteHtml}</div>
+            </div>
+        ` : "";
+        const collapseLabel = cardCollapsed ? "展开" : "折叠";
 
-        card.innerHTML = `
+        // --- Template A++: Visual Meter (scale: intraday low -> intraday high; levels may extend into invalid zones) ---
+const lowNum0 = Number(it.low);
+const highNum0 = Number(it.high);
+const hasDayRange = Number.isFinite(lowNum0) && Number.isFinite(highNum0) && highNum0 > lowNum0;
+
+// Domain should include intraday low/high and key strategy levels so marks won't be clipped at edges.
+const cand = [];
+const pushN = (v) => {
+  if(v === null || v === undefined) return;
+  if(typeof v === "string" && v.trim() === "") return;
+  const n = Number(v);
+  if(Number.isFinite(n) && n > 0) cand.push(n);
+};
+
+pushN(it.low); pushN(it.high);
+pushN(it.stop); pushN(it.support); pushN(it.breakout); pushN(it.tp1); pushN(it.tp2);
+pushN(it.price); pushN(it.avgPrice); pushN(it.open); pushN(it.prevClose);
+
+let baseMin = cand.length ? Math.min(...cand) : cur;
+let baseMax = cand.length ? Math.max(...cand) : cur;
+
+// Ensure a sane range even if inputs are missing/invalid
+if(!(Number.isFinite(baseMin) && Number.isFinite(baseMax)) || baseMax <= baseMin){
+  baseMin = (Number.isFinite(it.stop) ? Number(it.stop) : cur);
+  baseMax = (Number.isFinite(it.tp2) ? Number(it.tp2) : (Number.isFinite(it.tp1) ? Number(it.tp1) : cur));
+}
+
+const rangeOk = Number.isFinite(baseMin) && Number.isFinite(baseMax) && baseMax > baseMin;
+
+const padPct = METER_PAD_PCT;
+const usablePct = Math.max(1, 100 - padPct * 2);
+
+// Map values to [0..100] with extra span shown in the "invalid" side zones.
+// baseMin maps to padPct, baseMax maps to 100-padPct.
+const posX = (val) => {
+  const v = Number(val);
+  if(!rangeOk || !Number.isFinite(v)) return padPct;
+  const span = baseMax - baseMin;
+  const extraSpan = span * (padPct / usablePct);
+  const extMin = baseMin - extraSpan;
+  const extMax = baseMax + extraSpan;
+  const pct = (v - extMin) / (extMax - extMin) * 100;
+  return Math.max(0, Math.min(100, pct));
+};
+
+const baseLeft = posX(baseMin);
+const curX = posX(cur);
+const fillW = Math.max(0, curX - baseLeft);
+
+// Intraday low-high floating band (not clipped by stop/tp; may use invalid zones)
+const dayRangeOk = hasDayRange;
+const dayL = dayRangeOk ? posX(it.low) : 0;
+const dayH = dayRangeOk ? posX(it.high) : 0;
+const dayLeft = Math.min(dayL, dayH);
+const dayRight = Math.max(dayL, dayH);
+const dayWidth = dayRangeOk ? Math.max(1, dayRight - dayLeft) : 0;
+
+// Avg tick (yellow) inside the intraday band
+const avgNum = Number(it.avgPrice);
+let avgX = (dayRangeOk && Number.isFinite(avgNum)) ? posX(avgNum) : NaN;
+if(dayRangeOk && Number.isFinite(avgX)){
+  avgX = Math.max(dayLeft, Math.min(dayRight, avgX));
+}
+
+const bracketHtml = dayRangeOk ? `
+  <div class="range-bracket-layer">
+    <div class="range-bracket" style="left:${dayLeft}%; width:${dayWidth}%"></div>
+    ${Number.isFinite(avgX) ? `<div class="range-avg-tick" style="left:${avgX}%"></div>` : ""}
+  </div>
+` : "";
+
+const stopNum = Number(it.stop);
+const tp2Num = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
+const tp1Num = Number(it.tp1);
+const supportNum = Number(it.support);
+const breakoutNum = Number(it.breakout);
+const lowNum = Number(it.low);
+const highNum = Number(it.high);
+
+const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
+const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
+const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
+const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
+
+const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
+const isEdge = (n) => epsEq(n, baseMin) || epsEq(n, baseMax);
+
+const leftIsStop = Number.isFinite(stopNum) && epsEq(stopNum, baseMin);
+const leftIsLow  = hasDayRange && Number.isFinite(lowNum) && epsEq(lowNum, baseMin);
+const leftIsSupport = Number.isFinite(supportNum) && epsEq(supportNum, baseMin);
+
+const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑" : "下界"));
+const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNYNoSymbol(lowNum) : (leftIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMin)));
+const endLeftCls   = leftIsStop ? "risk" : "neutral";
+
+const rightIsTarget = Number.isFinite(targetNum) && epsEq(targetNum, baseMax);
+const rightIsHigh   = hasDayRange && Number.isFinite(highNum) && epsEq(highNum, baseMax);
+const rightIsBreakout = Number.isFinite(breakoutNum) && epsEq(breakoutNum, baseMax);
+const rightIsSupport  = Number.isFinite(supportNum) && epsEq(supportNum, baseMax);
+
+const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破" : (rightIsSupport ? "支撑" : "上界")));
+const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNYNoSymbol(highNum) : (rightIsBreakout ? formatCNYNoSymbol(breakoutNum) : (rightIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMax))));
+const endRightCls   = rightIsTarget ? "profit" : "neutral";
+
+// Strategy levels: show only the two nearest levels around current price as chips.
+// All other non-edge levels are rendered as tiny ticks (no capsules).
+const planLevels = [
+  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
+  { key:"support", cls:"amber", name:"支撑", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
+  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
+  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
+].filter(l => Number.isFinite(l.num) && l.num > 0);
+
+planLevels.sort((a,b)=>a.num-b.num);
+
+const le = (a,b)=> a < b || epsEq(a,b);
+const ge = (a,b)=> a > b || epsEq(a,b);
+
+let leftLv = null;
+let rightLv = null;
+
+for(const lv of planLevels){
+  if(le(lv.num, cur)) leftLv = lv;
+  if(!rightLv && ge(lv.num, cur)) rightLv = lv;
+}
+
+// If current price lands exactly on a level, try to show the next distinct level on the other side.
+if(leftLv && rightLv && leftLv.key === rightLv.key){
+  const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
+  if(idx >= 0){
+    if(planLevels[idx+1]) rightLv = planLevels[idx+1];
+    else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
+  }
+}
+
+const selectedKeys = new Set();
+if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
+if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
+
+// Chips (max 2)
+const meterMarks = [];
+planLevels.forEach(lv => {
+  if(selectedKeys.has(lv.key) && !isEdge(lv.num)){
+    meterMarks.push({ key: lv.key, cls: lv.cls, name: lv.name, value: formatCNYNoSymbol(lv.num), pos: posX(lv.num) });
+  }
+});
+
+meterMarks.sort((a,b)=>a.pos-b.pos);
+
+// --- Collision handling: L/R/T side-split (avoid chip overlap) ---
+const GAP_THRESHOLD = 12; // two marks closer than this (%) are considered crowded
+
+// Initialize all marks to Center
+meterMarks.forEach(m => m.side = 'C');
+
+for(let i = 0; i < meterMarks.length - 1; i++){
+  const curr = meterMarks[i];
+  const next = meterMarks[i+1];
+
+  if(next.pos - curr.pos < GAP_THRESHOLD){
+    // A) Two crowded marks -> Left + Right
+    if(curr.side === 'C'){
+      curr.side = 'L';
+      next.side = 'R';
+    }
+    // B) 3-chain collision: Prev(L) - Curr(R) - Next(?) -> keep Curr centered
+    else if(curr.side === 'R'){
+      // 3-chain: keep the middle mark centered to avoid chip order inversion
+      curr.side = 'C';
+      next.side = 'R';
+    }
+  }
+}
+
+// Edge guard: keep chips inside; hide only at extreme edges
+meterMarks.forEach(m => {
+  if(m.pos < 12) m.side = 'R';
+  if(m.pos > 88) m.side = 'L';
+  m.compact = (m.pos < 1 || m.pos > 99);
+});
+
+// Tiny ticks for non-adjacent levels
+const meterTickHtml = planLevels
+  .filter(lv => !selectedKeys.has(lv.key) && !isEdge(lv.num))
+  .map(lv => {
+    const p = posX(lv.num);
+    const compact = (p < 1 || p > 99);
+    return `<div class="meter-tick ${lv.cls} ${compact ? 'compact' : ''}" data-key="${lv.key || ''}" style="left:${p}%"></div>`;
+  }).join("");
+
+const meterMarkHtml = meterMarks.map(m => `
+  <div class="meter-mark ${m.cls} ${m.compact ? 'compact' : ''}" data-key="${m.key || ''}" data-side="${m.side || 'C'}" style="left:${m.pos}%">
+        <div class="mark-chip" title="${escapeHtml(m.name)} ${escapeHtml(m.value)}">
+      <div class="chip-l">${escapeHtml(m.name)}</div>
+      <div class="chip-v">${escapeHtml(m.value)}</div>
+    </div>
+  </div>
+`).join("");
+
+const meterHtml = rangeOk ? `
+  <div class="meter-wrap" style="--meter-pad:${padPct};">
+    <div class="meter-track">
+      <div class="meter-invalid left"></div>
+      <div class="meter-invalid right"></div>
+      <div class="meter-fill ${priceDirClass}" style="left:${baseLeft}%; width:${fillW}%"></div>
+    </div>
+
+    ${bracketHtml}
+
+    ${meterTickHtml}
+
+    ${meterMarkHtml}
+
+    <div class="meter-end left" data-key="min">
+      <div class="end-line"></div>
+      <div class="end-label">${escapeHtml(endLeftLabel)}</div>
+      <div class="end-val ${escapeHtml(endLeftCls)}">${escapeHtml(endLeftVal)}</div>
+    </div>
+
+    <div class="meter-end right" data-key="max">
+      <div class="end-line"></div>
+      <div class="end-label">${escapeHtml(endRightLabel)}</div>
+      <div class="end-val ${escapeHtml(endRightCls)}">${escapeHtml(endRightVal)}</div>
+    </div>
+
+    <div class="meter-cursor ${priceDirClass}" style="left:${curX}%">
+      <div class="tri"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+` : "";
+card.innerHTML = `
           <div class="card-inner">
             <div class="card-top">
               <div class="codes">
                 <div class="title-row">
-                  <div class="name-pack">
-                    <p class="big">${bigTitle}</p>
-                    ${codeInlineHtml}
-                  </div>
-                  <div class="chg-badge ${chgClass}" title="涨跌幅">${escapeHtml(chgText)}</div>
+	                  <button type="button" class="big title-hit" data-act="collapse" data-id="${it.id}" aria-label="${collapseLabel}" title="${collapseLabel}">${bigTitle}</button>
+                  <span class="code">${escapeHtml(it.symbol)}</span>
                 </div>
               </div>
               <div class="card-tools">
@@ -1811,6 +2890,11 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 5v14"></path>
                     <path d="M18 13l-6 6-6-6"></path>
+                  </svg>
+                </button>
+                <button class="tool collapse" data-act="collapse" data-id="${it.id}" aria-label="${collapseLabel}" title="${collapseLabel}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9l6 6 6-6"></path>
                   </svg>
                 </button>
                 <button class="tool" data-act="edit" data-id="${it.id}" aria-label="Edit" title="编辑">
@@ -1830,15 +2914,23 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
                 </button>
               </div>
             </div>
-            <div class="note-row">
-              <div class="card-note" title="${noteTitle}">${noteHtml}</div>
-            </div>
 
-            <div class="price-row">
-              <div class="price-left">
+            <div class="card-bd">
+            ${noteRowHtml}
+
+            <div class="core-row">
+              <div class="core-left">
                 <div class="label">当前价格</div>
-                <div class="price">
-                  <span class="price-value ${priceDirClass}">${formatCNY(it.price)}</span>
+                <div class="core-line">
+                  <span class="core-price ${priceDirClass}">${formatCNY(it.price)}</span>
+                  <span class="core-change ${chgClass}">${escapeHtml(chgDisp)}</span>
+                </div>
+                
+              </div>
+
+              <div class="core-right">
+                <div class="updated-row">
+                  <span>Updated ${escapeHtml(it.updatedAt)}</span>
                   <button class="refresh-mini" data-act="refresh" data-id="${it.id}" aria-label="Refresh" title="更新">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
@@ -1848,60 +2940,482 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
                     </svg>
                   </button>
                 </div>
-              </div>
 
-              <div class="price-mid">
-                <div class="metric"><div class="m-label">最高</div><div class="m-val">${formatMaybeCNY(it.high)}</div></div>
-                <div class="metric"><div class="m-label">均价</div><div class="m-val ${avgDirClass}">${formatMaybeCNY(it.avgPrice)}</div></div>
-                <div class="metric"><div class="m-label">今开</div><div class="m-val">${formatMaybeCNY(it.open)}</div></div>
-                <div class="metric"><div class="m-label">最低</div><div class="m-val">${formatMaybeCNY(it.low)}</div></div>
-                <div class="metric"><div class="m-label">量比</div><div class="m-val">${formatRatio(it.volRatio)}</div></div>
-                <div class="metric"><div class="m-label">昨收</div><div class="m-val">${formatMaybeCNY(it.prevClose)}</div></div>
-              </div>
-
-              <div class="price-right">
-                <div class="status ${statusCls(it.status)}">${escapeHtml(it.status)}</div>
-                <div class="time">${escapeHtml(it.updatedAt)}</div>
+                <div class="status-pill ${statusCls(it.status)}"><span class="pulse-dot"></span>${escapeHtml(it.status)}</div>
               </div>
             </div>
 
-            <div class="divider"></div>
+            ${meterHtml}
 
-            <div class="pills ${colsClass}">
-              <div class="pill red">
-                <div class="k">止损</div>
-                <div class="v">${formatCNY(it.stop)}</div>
-              <div class="d">${escapeHtml(stopDelta)}</div>
-              </div>
-              <div class="pill amber">
-                <div class="k">支撑</div>
-                <div class="v">${formatCNY(it.support)}</div>
-              <div class="d">${escapeHtml(supportDelta)}</div>
-              </div>
-              ${Number.isFinite(it.breakout) ? `
-              <div class="pill blue">
-                <div class="k">突破位</div>
-                <div class="v">${formatCNY(it.breakout)}</div>
-              <div class="d">${escapeHtml(breakoutDelta)}</div>
-              </div>` : ``}
-              <div class="pill green">
-                <div class="k">止盈1</div>
-                <div class="v">${formatCNY(it.tp1)}</div>
-              <div class="d">${escapeHtml(tp1Delta)}</div>
-              </div>
-              ${Number.isFinite(it.tp2) ? `
-              <div class="pill green">
-                <div class="k">止盈2</div>
-                <div class="v">${formatCNY(it.tp2)}</div>
-              <div class="d">${escapeHtml(tp2Delta)}</div>
-              </div>` : ``}
+            <div class="stats-grid">
+              <div class="dp"><div class="dp-l">今开</div><div class="dp-v">${formatMaybeCNY(it.open)}</div></div>
+              <div class="dp"><div class="dp-l">最高</div><div class="dp-v">${formatMaybeCNY(it.high)}</div></div>
+              <div class="dp"><div class="dp-l">均价</div><div class="dp-v">${formatMaybeCNY(it.avgPrice)}</div></div>
+              <div class="dp"><div class="dp-l">昨收</div><div class="dp-v">${formatMaybeCNY(it.prevClose)}</div></div>
+              <div class="dp"><div class="dp-l">最低</div><div class="dp-v">${formatMaybeCNY(it.low)}</div></div>
+              <div class="dp"><div class="dp-l">量比</div><div class="dp-v">${formatRatio(it.volRatio)}</div></div>
             </div>
+
+            </div>
+
           </div>
         `;
 
         listEl.appendChild(card);
       });
     }
+
+    // ---------- Incremental UI update (avoid full list re-render on price refresh) ----------
+    function computePriceDirClass(prev, cur){
+      let cls = "flat";
+      if(Number.isFinite(prev) && Number.isFinite(cur)){
+        if(cur > prev) cls = "up";
+        else if(cur < prev) cls = "down";
+      }
+      return cls;
+    }
+
+    function computeChangeDisplay(prev, cur){
+      let chgDisp = "--";
+      let chgClass = "flat";
+      if(Number.isFinite(prev) && prev > 0 && Number.isFinite(cur)){
+        const chgPct = (cur - prev) / prev * 100;
+        if(chgPct > 1e-8) chgClass = "up";
+        else if(chgPct < -1e-8) chgClass = "down";
+        chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
+      }
+      return { chgDisp, chgClass };
+    }
+
+    function updateStatsGrid(card, it){
+      const dps = card.querySelectorAll(".stats-grid .dp");
+      if(!dps || dps.length === 0) return;
+      dps.forEach((dp) => {
+        const k = (dp.querySelector(".dp-l")?.textContent || "").trim();
+        const v = dp.querySelector(".dp-v");
+        if(!v) return;
+        if(k === "今开") v.textContent = formatMaybeCNY(it.open);
+        else if(k === "昨收") v.textContent = formatMaybeCNY(it.prevClose);
+        else if(k === "最高") v.textContent = formatMaybeCNY(it.high);
+        else if(k === "最低") v.textContent = formatMaybeCNY(it.low);
+        else if(k === "均价") v.textContent = formatMaybeCNY(it.avgPrice);
+        else if(k === "量比") v.textContent = formatRatio(it.volRatio);
+      });
+    }
+
+    function updateMeter(card, it, priceDirClass){
+      const meterWrap = card.querySelector(".meter-wrap");
+      if(!meterWrap) return true;
+
+      // keep CSS var in sync (render sets it too)
+      meterWrap.style.setProperty("--meter-pad", String(METER_PAD_PCT));
+
+      const cur = Number(it.price);
+
+      const lowNum0 = Number(it.low);
+      const highNum0 = Number(it.high);
+      const hasDayRange = Number.isFinite(lowNum0) && Number.isFinite(highNum0) && highNum0 > lowNum0;
+
+      // Domain should include intraday low/high and key strategy levels so marks won't be clipped at edges.
+      const cand = [];
+      const pushN = (v) => {
+        if(v === null || v === undefined) return;
+        if(typeof v === "string" && v.trim() === "") return;
+        const n = Number(v);
+        if(Number.isFinite(n) && n > 0) cand.push(n);
+      };
+
+      pushN(it.low); pushN(it.high);
+      pushN(it.stop); pushN(it.support); pushN(it.breakout); pushN(it.tp1); pushN(it.tp2);
+      pushN(it.price); pushN(it.avgPrice); pushN(it.open); pushN(it.prevClose);
+
+      let baseMin = cand.length ? Math.min(...cand) : cur;
+      let baseMax = cand.length ? Math.max(...cand) : cur;
+
+      // Ensure a sane range even if inputs are missing/invalid
+      if(!(Number.isFinite(baseMin) && Number.isFinite(baseMax)) || baseMax <= baseMin){
+        baseMin = (Number.isFinite(it.stop) ? Number(it.stop) : cur);
+        baseMax = (Number.isFinite(it.tp2) ? Number(it.tp2) : (Number.isFinite(it.tp1) ? Number(it.tp1) : cur));
+      }
+
+      const rangeOk = Number.isFinite(baseMin) && Number.isFinite(baseMax) && baseMax > baseMin;
+      if(!rangeOk) return false;
+
+      const padPct = METER_PAD_PCT;
+      const usablePct = Math.max(1, 100 - padPct * 2);
+
+      const posX = (val) => {
+        const v = Number(val);
+        if(!Number.isFinite(v)) return padPct;
+        const span = baseMax - baseMin;
+        const extraSpan = span * (padPct / usablePct);
+        const extMin = baseMin - extraSpan;
+        const extMax = baseMax + extraSpan;
+        const pct = (v - extMin) / (extMax - extMin) * 100;
+        return Math.max(0, Math.min(100, pct));
+      };
+
+      const baseLeft = posX(baseMin);
+      const curX = posX(cur);
+      const fillW = Math.max(0, curX - baseLeft);
+
+      const meterTrack = meterWrap.querySelector(".meter-track");
+      if(meterTrack){
+        // Ensure invalid overlays exist (in case of older cards)
+        if(!meterTrack.querySelector(".meter-invalid.left")){
+          meterTrack.insertAdjacentHTML("afterbegin", '<div class="meter-invalid left"></div><div class="meter-invalid right"></div>');
+        }
+      }
+
+      const fill = meterWrap.querySelector(".meter-fill");
+      if(fill){
+        fill.className = `meter-fill ${priceDirClass}`;
+        fill.style.left = `${baseLeft}%`;
+        fill.style.width = `${fillW}%`;
+      }
+      const cursor = meterWrap.querySelector(".meter-cursor");
+      if(cursor){
+        cursor.className = `meter-cursor ${priceDirClass}`;
+        cursor.style.left = `${curX}%`;
+      }
+
+      // End labels: choose extremes from (intraday low/high) AND (stop/targets) so key levels remain visible
+      const stopNum = Number(it.stop);
+      const tp2Num = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
+      const tp1Num = Number(it.tp1);
+      const lowNum = Number(it.low);
+      const highNum = Number(it.high);
+
+      const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
+      const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
+      const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
+      const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
+
+      const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
+      const isEdge = (n) => epsEq(n, baseMin) || epsEq(n, baseMax);
+
+      const supportNum = Number(it.support);
+      const breakoutNum = Number(it.breakout);
+
+      const leftIsStop = Number.isFinite(stopNum) && epsEq(stopNum, baseMin);
+      const leftIsLow  = hasDayRange && Number.isFinite(lowNum) && epsEq(lowNum, baseMin);
+      const leftIsSupport = Number.isFinite(supportNum) && epsEq(supportNum, baseMin);
+
+      const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑" : "下界"));
+      const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNYNoSymbol(lowNum) : (leftIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMin)));
+      const endLeftCls   = leftIsStop ? "risk" : "neutral";
+
+      const rightIsTarget = Number.isFinite(targetNum) && epsEq(targetNum, baseMax);
+      const rightIsHigh   = hasDayRange && Number.isFinite(highNum) && epsEq(highNum, baseMax);
+      const rightIsBreakout = Number.isFinite(breakoutNum) && epsEq(breakoutNum, baseMax);
+      const rightIsSupport  = Number.isFinite(supportNum) && epsEq(supportNum, baseMax);
+
+      const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破" : (rightIsSupport ? "支撑" : "上界")));
+      const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNYNoSymbol(highNum) : (rightIsBreakout ? formatCNYNoSymbol(breakoutNum) : (rightIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMax))));
+      const endRightCls   = rightIsTarget ? "profit" : "neutral";
+
+      const minEnd = meterWrap.querySelector('.meter-end[data-key="min"]');
+      if(minEnd){
+        const lab = minEnd.querySelector(".end-label");
+        const v = minEnd.querySelector(".end-val");
+        if(lab) lab.textContent = endLeftLabel;
+        if(v){
+          v.className = `end-val ${endLeftCls}`;
+          v.textContent = endLeftVal;
+        }
+      }else{
+        return false;
+      }
+
+      const maxEnd = meterWrap.querySelector('.meter-end[data-key="max"]');
+      if(maxEnd){
+        const lab = maxEnd.querySelector(".end-label");
+        const v = maxEnd.querySelector(".end-val");
+        if(lab) lab.textContent = endRightLabel;
+        if(v){
+          v.className = `end-val ${endRightCls}`;
+          v.textContent = endRightVal;
+        }
+      }else{
+        return false;
+      }
+
+      // Intraday low-high floating band + avg tick (yellow)
+      const dayRangeOk = hasDayRange;
+      const dayL = dayRangeOk ? posX(it.low) : 0;
+      const dayH = dayRangeOk ? posX(it.high) : 0;
+      const dayLeft = Math.min(dayL, dayH);
+      const dayRight = Math.max(dayL, dayH);
+      const dayWidth = dayRangeOk ? Math.max(1, dayRight - dayLeft) : 0;
+
+      const avgNum = Number(it.avgPrice);
+      let avgX = (dayRangeOk && Number.isFinite(avgNum)) ? posX(avgNum) : NaN;
+      if(dayRangeOk && Number.isFinite(avgX)){
+        avgX = Math.max(dayLeft, Math.min(dayRight, avgX));
+      }
+
+      let layer = meterWrap.querySelector(".range-bracket-layer");
+      if(dayRangeOk){
+        if(!layer){
+          layer = document.createElement("div");
+          layer.className = "range-bracket-layer";
+          const br = document.createElement("div");
+          br.className = "range-bracket";
+          layer.appendChild(br);
+          const tick = document.createElement("div");
+          tick.className = "range-avg-tick";
+          layer.appendChild(tick);
+          const track = meterWrap.querySelector(".meter-track");
+          if(track) track.insertAdjacentElement("afterend", layer);
+          else meterWrap.insertAdjacentElement("afterbegin", layer);
+        }
+        const br = layer.querySelector(".range-bracket");
+        if(br){
+          br.style.left = `${dayLeft}%`;
+          br.style.width = `${dayWidth}%`;
+        }
+        const tick = layer.querySelector(".range-avg-tick");
+        if(tick){
+          if(Number.isFinite(avgX)){
+            tick.style.display = "block";
+            tick.style.left = `${avgX}%`;
+          }else{
+            tick.style.display = "none";
+          }
+        }
+      }else if(layer){
+        layer.remove();
+      }
+
+      // Strategy levels: show only the two nearest levels around current price as chips.
+// All other non-edge levels are rendered as tiny ticks (no capsules).
+const planLevels = [
+  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
+  { key:"support", cls:"amber", name:"支撑", num: supportNum },
+  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
+  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
+  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
+].filter(l => Number.isFinite(l.num) && l.num > 0);
+
+planLevels.sort((a,b)=>a.num-b.num);
+
+const le = (a,b)=> a < b || epsEq(a,b);
+const ge = (a,b)=> a > b || epsEq(a,b);
+
+let leftLv = null;
+let rightLv = null;
+
+for(const lv of planLevels){
+  if(le(lv.num, cur)) leftLv = lv;
+  if(!rightLv && ge(lv.num, cur)) rightLv = lv;
+}
+
+if(leftLv && rightLv && leftLv.key === rightLv.key){
+  const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
+  if(idx >= 0){
+    if(planLevels[idx+1]) rightLv = planLevels[idx+1];
+    else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
+  }
+}
+
+const selectedKeys = new Set();
+if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
+if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
+
+const upsertChip = (key, cls, name, rawNum, wantChip) => {
+  const el = meterWrap.querySelector(`.meter-mark[data-key="${key}"]`);
+  const show = wantChip && Number.isFinite(rawNum) && !isEdge(rawNum);
+
+  if(!show){
+    if(el) el.remove();
+    return true;
+  }
+
+  const p = posX(rawNum);
+  const value = formatCNYNoSymbol(rawNum);
+
+  if(!el){
+    const div = document.createElement("div");
+    div.className = `meter-mark ${cls}`;
+    div.dataset.key = key;
+    div.dataset.side = "C";
+    div.style.left = `${p}%`;
+    div.innerHTML = `
+            <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
+        <div class="chip-l">${escapeHtml(name)}</div>
+        <div class="chip-v">${escapeHtml(value)}</div>
+      </div>
+    `;
+    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
+    if(anchor) meterWrap.insertBefore(div, anchor);
+    else meterWrap.appendChild(div);
+    return true;
+  }
+  // Remove legacy connector line (mark-line) if present
+  const legacyLine = el.querySelector(".mark-line");
+  if(legacyLine) legacyLine.remove();
+
+
+  el.className = `meter-mark ${cls}`;
+  el.style.left = `${p}%`;
+  const l = el.querySelector(".chip-l");
+  const v = el.querySelector(".chip-v");
+  if(l) l.textContent = name;
+  if(v) v.textContent = value;
+  return true;
+};
+
+const upsertTick = (key, cls, rawNum, wantTick) => {
+  const el = meterWrap.querySelector(`.meter-tick[data-key="${key}"]`);
+  const show = wantTick && Number.isFinite(rawNum) && !isEdge(rawNum);
+
+  if(!show){
+    if(el) el.remove();
+    return true;
+  }
+
+  const p = posX(rawNum);
+  const compact = (p < 1 || p > 99);
+  if(compact){
+    if(el) el.remove();
+    return true;
+  }
+
+  if(!el){
+    const div = document.createElement("div");
+    div.className = `meter-tick ${cls}`;
+    div.dataset.key = key;
+    div.style.left = `${p}%`;
+    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
+    if(anchor) meterWrap.insertBefore(div, anchor);
+    else meterWrap.appendChild(div);
+    return true;
+  }
+
+  el.className = `meter-tick ${cls}`;
+  el.style.left = `${p}%`;
+  el.classList.toggle("compact", compact);
+  return true;
+};
+
+// Chips: only the two adjacent levels around current price
+if(!upsertChip("stop", "red", "止损", stopNum, selectedKeys.has("stop"))) return false;
+if(!upsertChip("support", "amber", "支撑", supportNum, selectedKeys.has("support"))) return false;
+if(!upsertChip("breakout", "blue", "突破", breakoutNum, selectedKeys.has("breakout"))) return false;
+if(!upsertChip("tp1", "green", "止盈1", tp1Num, selectedKeys.has("tp1"))) return false;
+if(!upsertChip("tp2", "green", "止盈2", tp2Num, selectedKeys.has("tp2"))) return false;
+
+// Ticks: all other non-adjacent levels
+if(!upsertTick("stop", "red", stopNum, !selectedKeys.has("stop"))) return false;
+if(!upsertTick("support", "amber", supportNum, !selectedKeys.has("support"))) return false;
+if(!upsertTick("breakout", "blue", breakoutNum, !selectedKeys.has("breakout"))) return false;
+if(!upsertTick("tp1", "green", tp1Num, !selectedKeys.has("tp1"))) return false;
+if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
+
+// Recompute mark side-split after updates (avoid overlap on incremental refresh)
+      const markEls = Array.from(meterWrap.querySelectorAll(".meter-mark")).map(el => {
+        const pos = Number(String(el.style.left || "").replace("%",""));
+        return { el, pos: Number.isFinite(pos) ? pos : 0, side: "C" };
+      }).sort((a,b)=>a.pos-b.pos);
+
+      const GAP_THRESHOLD = 12;
+      for(let i = 0; i < markEls.length - 1; i++){
+        const curr = markEls[i];
+        const next = markEls[i+1];
+        if(next.pos - curr.pos < GAP_THRESHOLD){
+          if(curr.side === "C"){
+            curr.side = "L";
+            next.side = "R";
+          }else if(curr.side === "R"){
+            // 3-chain: keep the middle mark centered to avoid chip order inversion
+            curr.side = "C";
+            next.side = "R";
+          }
+        }
+      }
+
+      markEls.forEach(m => {
+        let side = m.side;
+        if(m.pos < 12) side = "R";
+        if(m.pos > 88) side = "L";
+        m.el.dataset.side = side;
+
+        const compact = (m.pos < 1 || m.pos > 99);
+        m.el.classList.toggle("compact", compact);
+      });
+
+      return true;
+    }
+
+    function updateCardValues(it){
+      const card = document.getElementById("card-" + it.symbol);
+      if(!card) return false;
+
+      const prev = Number(it.prevClose);
+      const cur = Number(it.price);
+      const priceDirClass = computePriceDirClass(prev, cur);
+      const { chgDisp, chgClass } = computeChangeDisplay(prev, cur);
+
+      // Title can change when quote name updates
+      const big = card.querySelector(".title-row .big");
+      if(big) big.textContent = it.name ? String(it.name) : String(it.symbol);
+
+      const priceEl = card.querySelector(".core-price");
+      if(priceEl){
+        priceEl.textContent = formatCNY(it.price);
+        priceEl.classList.remove("up","down","flat");
+        priceEl.classList.add(priceDirClass);
+      }
+
+      const chgEl = card.querySelector(".core-change");
+      if(chgEl){
+        chgEl.textContent = chgDisp;
+        chgEl.classList.remove("up","down","flat");
+        chgEl.classList.add(chgClass);
+      }
+
+      const upd = card.querySelector(".updated-row span");
+      if(upd){
+        const t = (it.updatedAt ? String(it.updatedAt) : "").trim();
+        upd.textContent = t ? `Updated ${t}` : "Updated";
+      }
+
+      const pill = card.querySelector(".status-pill");
+      if(pill){
+        pill.className = `status-pill ${statusCls(it.status)}`;
+        pill.innerHTML = `<span class="pulse-dot"></span>${escapeHtml(String(it.status || ""))}`;
+      }
+
+      if(!updateMeter(card, it, priceDirClass)) return false;
+      updateStatsGrid(card, it);
+
+      return true;
+    }
+
+    function updateValuesOnly(){
+      // Update dashboard summary (does not touch list DOM)
+      renderDashboard();
+
+      let missing = false;
+      for(const it of items){
+        if(!updateCardValues(it)) missing = true;
+      }
+
+      // Safety fallback: if DOM is out of sync (rare), rebuild once.
+      if(missing){
+        render();
+      }
+    }
+
+
+    // ---------- Note expand/collapse ----------
+    listEl.addEventListener("click", (e) => {
+      const note = e.target.closest(".card-note");
+      if(!note) return;
+      const expanded = !note.classList.contains("expanded");
+      note.classList.toggle("expanded", expanded);
+      note.setAttribute("aria-expanded", expanded ? "true" : "false");
+    });
 
     // ---------- Actions ----------
     listEl.addEventListener("click", async (e) => {
@@ -1910,6 +3424,28 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
       const act = btn.dataset.act;
       const id = btn.dataset.id;
       if(!act || !id) return;
+
+      if(act === "collapse"){
+        const next = !isCardCollapsed(id);
+        setCardCollapsed(id, next);
+
+        const card = btn.closest(".card");
+        if(card) card.classList.toggle("collapsed", next);
+
+        const label = next ? "展开" : "折叠";
+        // Sync both the chevron button and the clickable stock title (if present)
+        if(card){
+          card.querySelectorAll(`button[data-act="collapse"][data-id="${id}"]`).forEach(b => {
+            b.title = label;
+            b.setAttribute("aria-label", label);
+          });
+        }else{
+          btn.title = label;
+          btn.setAttribute("aria-label", label);
+        }
+        updateCardsToggleUi();
+        return;
+      }
 
       if(act === "moveUp" || act === "moveDown"){
         const idx = items.findIndex(x => x.id === id);
@@ -1932,6 +3468,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         const ok = window.confirm(`确认删除：${label}？\n此操作不可恢复。`);
         if(!ok) return;
 
+        setCardCollapsed(id, false);
         items = items.filter(x => x.id !== id);
         persist();
         render();
@@ -1946,7 +3483,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
       if(act === "refresh"){
         await updateOnePrice(id);
         persist();
-        render();
+        updateValuesOnly();
         return;
       }
     });
@@ -1976,9 +3513,11 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     const btnExport = document.getElementById("btnExport");
     const btnImport = document.getElementById("btnImport");
     const bgRefreshToggle = document.getElementById("bgRefreshToggle");
+    const amoledToggle = document.getElementById("amoledToggle");
 
     function openIO(){
       if(!ioOverlay) return;
+      if(amoledToggle) amoledToggle.checked = (activeTheme === THEME_AMOLED);
       ioOverlay.classList.add("show");
       ioOverlay.setAttribute("aria-hidden","false");
     }
@@ -2007,6 +3546,15 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
       });
     }
 
+    if(amoledToggle){
+      amoledToggle.checked = (activeTheme === THEME_AMOLED);
+      amoledToggle.addEventListener("change", () => {
+        const next = amoledToggle.checked ? THEME_AMOLED : THEME_LIGHT;
+        try{ localStorage.setItem(LS_THEME_KEY, next); }catch(_){ /* ignore */ }
+        applyTheme(next);
+        toast(next === THEME_AMOLED ? "已开启夜间模式（AMOLED）" : "已关闭夜间模式（AMOLED）");
+      });
+    }
 
     // ---------- Threshold Alerts (Stop-loss / Breakout / Take-profit) ----------
     const LS_ALERTS_KEY = "strategy_cards_threshold_alerts_v1";
@@ -2077,7 +3625,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         payload.type === "stop" ? "止损位" :
         payload.type === "tp2"  ? "止盈2" :
         payload.type === "tp1"  ? "止盈1" :
-        "突破位";
+        "突破";
 
       if(alertBody){
         alertBody.innerHTML = `现价 <b>${priceStr}</b> 达到 ${which} <b>${levelStr}</b> 价格位，请确认。`;
@@ -2295,6 +3843,13 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     const btnClose = document.getElementById("btnClose");
     const btnCancel = document.getElementById("btnCancel");
     const btnSave = document.getElementById("btnSave");
+
+    function wireDraft(){
+      // Draft caching disabled: keep add-form inputs blank by default.
+      return;
+    }
+    // wireDraft();
+
     let modalMode = "add"; // "add" | "edit"
     let editingId = null;
 
@@ -2304,6 +3859,8 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
 
       if(mode === "add"){
         modalTitle.textContent = "添加股票";
+        // Default blank inputs (no draft restore)
+        try{ localStorage.removeItem(LS_DRAFT_KEY); }catch(_){ /* ignore */ }
         fSymbol.value = "";
         if(fNote) fNote.value = "";
         fStop.value = "";
@@ -2371,13 +3928,37 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         return;
       }
       if(breakout !== null && !Number.isFinite(breakout)){
-        toast("突破位 请输入有效数字或留空");
+        toast("突破 请输入有效数字或留空");
         return;
       }
       if(tp2 !== null && !Number.isFinite(tp2)){
         toast("止盈2 请输入有效数字或留空");
         return;
       }
+
+      // ----- Semantic ordering guards (avoid support/breakout inversion) -----
+      // Expected: stop < support < breakout < tp1 < tp2 (breakout/tp2 optional)
+      if(stop >= support){
+        toast("止损需要低于支撑");
+        if(fStop) fStop.focus();
+        return;
+      }
+      if(tp1 <= support){
+        toast("止盈1 需要高于支撑");
+        if(fTp1) fTp1.focus();
+        return;
+      }
+      if(breakout !== null && breakout <= support){
+        toast("突破需要高于支撑（检测到可能填反）");
+        if(fBreakout) fBreakout.focus();
+        return;
+      }
+      if(breakout !== null && tp1 <= breakout){
+        toast("止盈1 需要高于突破");
+        if(fTp1) fTp1.focus();
+        return;
+      }
+
       if(tp2 !== null && tp2 <= tp1){
         toast("止盈2 需要大于 止盈1（或留空）");
         return;
@@ -2494,7 +4075,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
         }
 
         persist();
-        render();
+        updateValuesOnly();
       }catch(e){
         toast(`批量更新失败: ${String(e.message || e)}`);
       }
