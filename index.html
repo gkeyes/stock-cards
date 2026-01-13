@@ -173,9 +173,6 @@
       background: rgba(11,11,11,.92) !important;
       border-color: rgba(255,255,255,.12) !important;
     }
-    :root[data-theme="amoled"] .meter-mark .mark-chip .chip-l{
-      color: rgba(229,231,235,.65) !important;
-    }
 
         :root[data-theme="amoled"] .meter-cursor:not(.up):not(.down) .dot{
       background: rgba(255,255,255,.55) !important;
@@ -1285,7 +1282,23 @@
       top: 14px;
       z-index: 2;
     }
-    .meter-mark[data-row="1"]{ top: 2px; }
+    /* Capsule tick line: keep a visible white connector, 1.5x longer than non-adjacent ticks */
+    .meter-mark::before{
+      content:"";
+      width: 3px;
+      height: 15px; /* 1.5 * 10px (.meter-tick height) */
+      border-radius: 999px;
+      background: transparent;
+}
+
+    
+/* Capsule connector line color matches level class */
+.meter-mark.red::before{   background: rgba(239,68,68,.85); }
+.meter-mark.amber::before{ background: rgba(245,158,11,.85); }
+.meter-mark.blue::before{  background: rgba(59,130,246,.85); }
+.meter-mark.green::before{ background: rgba(16,185,129,.85); }
+
+.meter-mark[data-row="1"]{ top: 2px; }
     .meter-mark .mark-line{
       width: 4px;
       height: 16px;
@@ -1348,6 +1361,16 @@
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
+
+    /* Chip text color matches tick color (stop/support/breakout/take-profit) */
+    .meter-mark.red   .mark-chip .chip-l,
+    .meter-mark.red   .mark-chip .chip-v{ color: rgba(239,68,68,.92) !important; }
+    .meter-mark.amber .mark-chip .chip-l,
+    .meter-mark.amber .mark-chip .chip-v{ color: rgba(245,158,11,.92) !important; }
+    .meter-mark.blue  .mark-chip .chip-l,
+    .meter-mark.blue  .mark-chip .chip-v{ color: rgba(59,130,246,.92) !important; }
+    .meter-mark.green .mark-chip .chip-l,
+    .meter-mark.green .mark-chip .chip-v{ color: rgba(16,185,129,.92) !important; }
     .meter-mark.compact .mark-chip{ display:none; }
 
     /* --- Meter mark side-split (L/R/T) to reduce overlap --- */
@@ -2772,8 +2795,7 @@ const meterTickHtml = planLevels
 
 const meterMarkHtml = meterMarks.map(m => `
   <div class="meter-mark ${m.cls} ${m.compact ? 'compact' : ''}" data-key="${m.key || ''}" data-side="${m.side || 'C'}" style="left:${m.pos}%">
-    <div class="mark-line"></div>
-    <div class="mark-chip" title="${escapeHtml(m.name)} ${escapeHtml(m.value)}">
+        <div class="mark-chip" title="${escapeHtml(m.name)} ${escapeHtml(m.value)}">
       <div class="chip-l">${escapeHtml(m.name)}</div>
       <div class="chip-v">${escapeHtml(m.value)}</div>
     </div>
@@ -3185,8 +3207,7 @@ const upsertChip = (key, cls, name, rawNum, wantChip) => {
     div.dataset.side = "C";
     div.style.left = `${p}%`;
     div.innerHTML = `
-      <div class="mark-line"></div>
-      <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
+            <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
         <div class="chip-l">${escapeHtml(name)}</div>
         <div class="chip-v">${escapeHtml(value)}</div>
       </div>
@@ -3196,6 +3217,10 @@ const upsertChip = (key, cls, name, rawNum, wantChip) => {
     else meterWrap.appendChild(div);
     return true;
   }
+  // Remove legacy connector line (mark-line) if present
+  const legacyLine = el.querySelector(".mark-line");
+  if(legacyLine) legacyLine.remove();
+
 
   el.className = `meter-mark ${cls}`;
   el.style.left = `${p}%`;
