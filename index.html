@@ -422,9 +422,6 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
-    .dash-table .core-change{ font-size: inherit; }
-
     .dash-table th{
       color: var(--muted);
       font-weight: 900;
@@ -434,6 +431,11 @@
 
     .dash-table td.num,
     .dash-table th.num{ text-align: right; }
+
+    .dash-table .core-change{ font-size: inherit; font-weight: 900; }
+    .dash-table td.num.chg{ padding-left:4px; padding-right:4px; text-overflow: clip; }
+    .dash-table td.num.chg .core-change{ font-size: .92em; }
+
 
     .d-tag{
       display:inline-flex;
@@ -954,6 +956,10 @@
     #alertTitle .alert-breakout{ color: var(--pill-blue-text); }
     #alertTitle .alert-tp1{ color: var(--pill-green-text); }
     #alertTitle .alert-tp2{ color: var(--pill-green-text); }
+    #alertTitle .alert-breakdown{ color: var(--pill-blue-text); }
+    #alertTitle .alert-stop_recover{ color: var(--pill-amber-text); }
+    #alertTitle .alert-tp1_back{ color: var(--pill-amber-text); }
+    #alertTitle .alert-tp2_back{ color: var(--pill-amber-text); }
     .modal-bd{
       padding: 14px 16px 6px 16px;
       overflow:auto;
@@ -1113,7 +1119,7 @@
       font-weight: 900;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
-      display: inline-flex; /* show % change next to current price */
+      display: inline-block; /* show % change */
     }
     .core-change.up{ color: var(--red); }
     .core-change.down{ color: var(--green-deep); }
@@ -1698,7 +1704,7 @@
           <div style="min-width:0;">
             <div style="font-weight:900;">阈值弹窗通知</div>
             <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
-              当现价穿越止损/突破/止盈阈值时弹窗提醒（同一阈值每 5 分钟最多一次，可重复）。
+              当现价触发止损位/突破时弹窗提醒（仅弹一次，直到你修改对应价位）。
             </div>
           </div>
           <label class="switch" title="阈值弹窗通知">
@@ -1707,6 +1713,20 @@
           </label>
         </div>
 
+
+
+        <div id="alertBiRow" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="min-width:0;">
+            <div style="font-weight:900;">双向阈值通知</div>
+            <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
+              开启后，向上/向下穿越都会提醒（如突破后跌回、止损后收回）。仍遵守同一阈值 5 分钟冷却。
+            </div>
+          </div>
+          <label class="switch" title="双向阈值通知">
+            <input type="checkbox" id="alertBiToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
 
         <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div style="min-width:0;">
@@ -1896,26 +1916,39 @@ function isAutoRefreshLocked(){
       try{ localStorage.setItem(LS_DRAFT_KEY, JSON.stringify(d)); }catch(_){}
     }
 
-    function nowTime(){
-      const d = new Date();
-      const hh = String(d.getHours()).padStart(2,"0");
-      const mm = String(d.getMinutes()).padStart(2,"0");
-      const ss = String(d.getSeconds()).padStart(2,"0");
+    // ---------- Time helpers ----------
+    // A-shares trade on China Standard Time (CST, UTC+8).
+    const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+    function cstShiftedDate(d = new Date()){
+      const t = (d instanceof Date) ? d.getTime() : Number(d);
+      const base = Number.isFinite(t) ? t : Date.now();
+      return new Date(base + CST_OFFSET_MS);
+    }
+
+    function nowTime(d = new Date()){
+      // A-shares trade on China Standard Time (CST, UTC+8)
+      const x = cstShiftedDate(d);
+      const hh = String(x.getUTCHours()).padStart(2,"0");
+      const mm = String(x.getUTCMinutes()).padStart(2,"0");
+      const ss = String(x.getUTCSeconds()).padStart(2,"0");
       return `${hh}:${mm}:${ss}`;
     }
 
     function todayYMD(d = new Date()){
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
+      const x = cstShiftedDate(d);
+      const y = x.getUTCFullYear();
+      const m = String(x.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(x.getUTCDate()).padStart(2, "0");
       return `${y}-${m}-${dd}`;
     }
 
     function minutesOfDay(d = new Date()){
-      return d.getHours() * 60 + d.getMinutes();
+      const x = cstShiftedDate(d);
+      return x.getUTCHours() * 60 + x.getUTCMinutes();
     }
 
-    // A-share call auction windows (local device time):
+    // A-share call auction windows (CST/UTC+8):
     // 09:15-09:30 (includes cooling period), 14:57-15:00 (closing auction)
     function isCallAuctionNow(d = new Date()){
       const m = minutesOfDay(d);
@@ -2123,6 +2156,12 @@ function isAutoRefreshLocked(){
           out.push({ marketCode: mc, error: String(e.message || e) });
         }
       }
+
+      // Clear JSONP global payloads to reduce window memory bloat
+      for(const mc of uniq){
+        const key = "v_" + mc;
+        try{ window[key] = ""; }catch(_){ /* ignore */ }
+      }
       return out;
     }
 
@@ -2269,38 +2308,57 @@ function isAutoRefreshLocked(){
       const e = Math.min(a1, b1);
       return Math.max(0, e - s);
     }
-    // Breakout duration: exclude the noon break (11:30-13:00, local time)
+    // Breakout duration: exclude the noon break (11:30-13:00, CST/UTC+8)
     function tradingElapsedMs(startMs, endMs){
-  if(!Number.isFinite(Number(startMs)) || !Number.isFinite(Number(endMs))) return NaN;
-  const s0 = Number(startMs), e0 = Number(endMs);
-  if(e0 < s0) return 0;
+      // Elapsed A-share trading time between two timestamps, excluding the noon break.
+      // NOTE: The trading schedule is evaluated in China Standard Time (CST, UTC+8),
+      // so the result is stable even if the device is in another timezone.
+      const s0 = Number(startMs);
+      const e0 = Number(endMs);
+      if(!Number.isFinite(s0) || !Number.isFinite(e0)) return 0;
 
-  // Sum only in-trading-session overlap:
-  // 09:30-11:30 and 13:00-15:00 (exclude lunch break + exclude after 15:00).
-  let total = 0;
-  let d = new Date(s0);
-  while(true){
-    const y = d.getFullYear(), mo = d.getMonth(), da = d.getDate();
-    const dayStart = new Date(y, mo, da, 0, 0, 0, 0).getTime();
-    const dayEnd   = new Date(y, mo, da + 1, 0, 0, 0, 0).getTime();
+      const s = Math.min(s0, e0);
+      const e = Math.max(s0, e0);
 
-    const segStart = Math.max(s0, dayStart);
-    const segEnd   = Math.min(e0, dayEnd);
+      // Shift to a "CST pseudo-epoch" so UTC getters map to CST wall-clock.
+      let cursor = s + CST_OFFSET_MS;
+      const endC = e + CST_OFFSET_MS;
 
-    if(segEnd > segStart){
-      const s1Start = new Date(y, mo, da, 9, 30, 0, 0).getTime();
-      const s1End   = new Date(y, mo, da, 11, 30, 0, 0).getTime();
-      const s2Start = new Date(y, mo, da, 13, 0, 0, 0).getTime();
-      const s2End   = new Date(y, mo, da, 15, 0, 0, 0).getTime();
-      total += overlapMs(segStart, segEnd, s1Start, s1End);
-      total += overlapMs(segStart, segEnd, s2Start, s2End);
+      let total = 0;
+
+      const addOverlap = (a0, a1, b0, b1) => {
+        const x0 = Math.max(a0, b0);
+        const x1 = Math.min(a1, b1);
+        if(x1 > x0) total += (x1 - x0);
+      };
+
+      while(cursor < endC){
+        const d = new Date(cursor);
+        const y = d.getUTCFullYear();
+        const mo = d.getUTCMonth();
+        const da = d.getUTCDate();
+
+        const dayStart = Date.UTC(y, mo, da, 0, 0, 0, 0);
+        const dayEnd   = Date.UTC(y, mo, da + 1, 0, 0, 0, 0);
+
+        const segStart = Math.max(cursor, dayStart);
+        const segEnd   = Math.min(endC, dayEnd);
+
+        if(segEnd > segStart){
+          const s1Start = Date.UTC(y, mo, da, 9, 30, 0);
+          const s1End   = Date.UTC(y, mo, da, 11, 30, 0);
+          const s2Start = Date.UTC(y, mo, da, 13, 0, 0);
+          const s2End   = Date.UTC(y, mo, da, 15, 0, 0);
+
+          addOverlap(segStart, segEnd, s1Start, s1End);
+          addOverlap(segStart, segEnd, s2Start, s2End);
+        }
+
+        cursor = dayEnd;
+      }
+
+      return total;
     }
-
-    if(dayEnd >= e0) break;
-    d = new Date(dayEnd);
-  }
-  return Math.max(0, total);
-}
 
     function getBreakoutDurationMs(symbol){
       pruneBreakoutTS();
@@ -2357,7 +2415,8 @@ function isAutoRefreshLocked(){
           const el = document.getElementById(id);
           if(!el) return;
 
-          // Auto-expand card when locating from dashboard
+
+          // Auto-expand when locating from dashboard
           try{
             if(el.classList.contains("collapsed")){
               const item = (Array.isArray(items) ? items.find(x => String((x && x.symbol) || "").trim() === sym) : null);
@@ -2374,7 +2433,6 @@ function isAutoRefreshLocked(){
               el.classList.remove("collapsed");
             }
           }catch(_){}
-
 
           // Prefer scrollIntoView to respect nested scroll containers (more robust on mobile).
           try{
@@ -2498,7 +2556,7 @@ function isAutoRefreshLocked(){
             <td>${tags}</td>
             <td class="stock" title="${escapeHtml(stockTitle(it))}">${dashStockCell(it)}</td>
             <td class="num">${formatCNY(it.price)}</td>
-            <td class="num">${chgHtml}</td>
+            <td class="num chg">${chgHtml}</td>
           </tr>`;
         }
         html += `</tbody></table></div>`;
@@ -2586,6 +2644,46 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
       return "amber";
     }
 
+
+    function applyMeterMarkCrowding(marks, gapThresholdPct = 12){
+      // Shared chip collision resolver for both render() and updateMeter().
+      // Input items must have: { pos:number }. Output adds/overwrites: { side:'L'|'C'|'R', compact:boolean }.
+      if(!Array.isArray(marks) || marks.length === 0) return marks;
+
+      marks.sort((a,b)=>a.pos-b.pos);
+
+      // Initialize all marks to Center
+      marks.forEach(m => { m.side = "C"; });
+
+      for(let i = 0; i < marks.length - 1; i++){
+        const curr = marks[i];
+        const next = marks[i+1];
+
+        if(next.pos - curr.pos < gapThresholdPct){
+          // A) Two crowded marks -> Left + Right
+          if(curr.side === "C"){
+            curr.side = "L";
+            next.side = "R";
+          }
+          // B) 3-chain collision: Prev(L) - Curr(R) - Next(?) -> keep Curr centered
+          else if(curr.side === "R"){
+            // 3-chain: keep the middle mark centered to avoid chip order inversion
+            curr.side = "C";
+            next.side = "R";
+          }
+        }
+      }
+
+      // Edge guard: keep chips inside; hide only at extreme edges
+      marks.forEach(m => {
+        if(m.pos < 12) m.side = "R";
+        if(m.pos > 88) m.side = "L";
+        m.compact = (m.pos < 1 || m.pos > 99);
+      });
+
+      return marks;
+    }
+
     function render(){
       renderDashboard();
       listEl.innerHTML = "";
@@ -2636,7 +2734,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
           else if(chgPct < -1e-8) chgClass = "down";
           const sign = chgPct > 0 ? "+" : "";
           chgText = `${sign}${chgPct.toFixed(2)}%`;
-          chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')}${Math.abs(chgPct).toFixed(2)}%`;
+          chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
         }
 
         const stopDelta = formatDeltaPct(cur, it.stop);
@@ -2812,37 +2910,8 @@ planLevels.forEach(lv => {
 
 meterMarks.sort((a,b)=>a.pos-b.pos);
 
-// --- Collision handling: L/R/T side-split (avoid chip overlap) ---
-const GAP_THRESHOLD = 12; // two marks closer than this (%) are considered crowded
-
-// Initialize all marks to Center
-meterMarks.forEach(m => m.side = 'C');
-
-for(let i = 0; i < meterMarks.length - 1; i++){
-  const curr = meterMarks[i];
-  const next = meterMarks[i+1];
-
-  if(next.pos - curr.pos < GAP_THRESHOLD){
-    // A) Two crowded marks -> Left + Right
-    if(curr.side === 'C'){
-      curr.side = 'L';
-      next.side = 'R';
-    }
-    // B) 3-chain collision: Prev(L) - Curr(R) - Next(?) -> keep Curr centered
-    else if(curr.side === 'R'){
-      // 3-chain: keep the middle mark centered to avoid chip order inversion
-      curr.side = 'C';
-      next.side = 'R';
-    }
-  }
-}
-
-// Edge guard: keep chips inside; hide only at extreme edges
-meterMarks.forEach(m => {
-  if(m.pos < 12) m.side = 'R';
-  if(m.pos > 88) m.side = 'L';
-  m.compact = (m.pos < 1 || m.pos > 99);
-});
+  // --- Collision handling: L/R side-split (avoid chip overlap) ---
+  applyMeterMarkCrowding(meterMarks);
 
 // Tiny ticks for non-adjacent levels
 const meterTickHtml = planLevels
@@ -3004,13 +3073,18 @@ card.innerHTML = `
       let chgClass = "flat";
       if(Number.isFinite(prev) && prev > 0 && Number.isFinite(cur)){
         const chgPct = (cur - prev) / prev * 100;
-        if(chgPct > 1e-8) chgClass = "up";
-        else if(chgPct < -1e-8) chgClass = "down";
-        chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')}${Math.abs(chgPct).toFixed(2)}%`;
+        const absPct = Math.abs(chgPct);
+
+        if(absPct < 1e-8){
+          chgClass = "flat";
+          chgDisp = `${absPct.toFixed(2)}%`;
+        }else{
+          chgClass = (chgPct > 0) ? "up" : "down";
+          chgDisp = `${chgPct > 0 ? '▲' : '▼'}${absPct.toFixed(2)}%`;
+        }
       }
       return { chgDisp, chgClass };
     }
-
     function updateStatsGrid(card, it){
       const dps = card.querySelectorAll(".stats-grid .dp");
       if(!dps || dps.length === 0) return;
@@ -3336,36 +3410,17 @@ if(!upsertTick("breakout", "blue", breakoutNum, !selectedKeys.has("breakout"))) 
 if(!upsertTick("tp1", "green", tp1Num, !selectedKeys.has("tp1"))) return false;
 if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
 
-// Recompute mark side-split after updates (avoid overlap on incremental refresh)
+  // Recompute mark side-split after updates (avoid overlap on incremental refresh)
       const markEls = Array.from(meterWrap.querySelectorAll(".meter-mark")).map(el => {
         const pos = Number(String(el.style.left || "").replace("%",""));
-        return { el, pos: Number.isFinite(pos) ? pos : 0, side: "C" };
+        return { el, pos: Number.isFinite(pos) ? pos : 0, side: "C", compact: false };
       }).sort((a,b)=>a.pos-b.pos);
 
-      const GAP_THRESHOLD = 12;
-      for(let i = 0; i < markEls.length - 1; i++){
-        const curr = markEls[i];
-        const next = markEls[i+1];
-        if(next.pos - curr.pos < GAP_THRESHOLD){
-          if(curr.side === "C"){
-            curr.side = "L";
-            next.side = "R";
-          }else if(curr.side === "R"){
-            // 3-chain: keep the middle mark centered to avoid chip order inversion
-            curr.side = "C";
-            next.side = "R";
-          }
-        }
-      }
+      applyMeterMarkCrowding(markEls);
 
       markEls.forEach(m => {
-        let side = m.side;
-        if(m.pos < 12) side = "R";
-        if(m.pos > 88) side = "L";
-        m.el.dataset.side = side;
-
-        const compact = (m.pos < 1 || m.pos > 99);
-        m.el.classList.toggle("compact", compact);
+        m.el.dataset.side = m.side || "C";
+        m.el.classList.toggle("compact", !!m.compact);
       });
 
       return true;
@@ -3481,7 +3536,19 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         const [moved] = items.splice(idx, 1);
         items.splice(to, 0, moved);
         persist();
-        render();
+
+        // Swap DOM nodes in-place to preserve focus (avoid full re-render)
+        const card = listEl.querySelector(`.card[data-id="${id}"]`);
+        if(card){
+          if(act === "moveUp"){
+            const prev = card.previousElementSibling;
+            if(prev) listEl.insertBefore(card, prev);
+          }else{
+            const next = card.nextElementSibling;
+            if(next) listEl.insertBefore(next, card); // swap with next -> move down
+          }
+        }
+        renderDashboard();
         return;
       }
 
@@ -3584,9 +3651,13 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     const LS_ALERTS_KEY = "strategy_cards_threshold_alerts_v1";
     const LS_ALERT_ACK_KEY = "strategy_cards_threshold_alert_ack_v1";
 
+    const LS_ALERTS_BI_KEY = "strategy_cards_threshold_alerts_bi_v1";
     let alertsEnabled = true;
     try{ alertsEnabled = localStorage.getItem(LS_ALERTS_KEY) !== "0"; }catch(_){ /* ignore */ }
 
+
+    let alertsBidirectional = false;
+    try{ alertsBidirectional = localStorage.getItem(LS_ALERTS_BI_KEY) === "1"; }catch(_){ /* ignore */ }
     /** @type {Record<string, {stop?:string, breakout?:string, tp1?:string, tp2?:string}>} */
     let alertAck = {};
     try{
@@ -3609,15 +3680,34 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
         alertsEnabled = !!alertToggle.checked;
         try{ localStorage.setItem(LS_ALERTS_KEY, alertsEnabled ? "1" : "0"); }catch(_){ /* ignore */ }
         toast(alertsEnabled ? "已开启阈值弹窗通知" : "已关闭阈值弹窗通知");
+        if(typeof syncAlertBiUi === "function") syncAlertBiUi();
       });
     }
+
+    const alertBiToggle = document.getElementById("alertBiToggle");
+    const alertBiRow = document.getElementById("alertBiRow");
+    const syncAlertBiUi = () => {
+      if(!alertBiToggle) return;
+      alertBiToggle.disabled = !alertsEnabled;
+      if(alertBiRow) alertBiRow.style.opacity = alertsEnabled ? "1" : ".55";
+    };
+    if(alertBiToggle){
+      alertBiToggle.checked = !!alertsBidirectional;
+      alertBiToggle.addEventListener("change", () => {
+        alertsBidirectional = !!alertBiToggle.checked;
+        try{ localStorage.setItem(LS_ALERTS_BI_KEY, alertsBidirectional ? "1" : "0"); }catch(_){ /* ignore */ }
+        toast(alertsBidirectional ? "已开启双向阈值通知" : "已关闭双向阈值通知");
+      });
+    }
+    syncAlertBiUi();
+
 
     const alertOverlay = document.getElementById("alertOverlay");
     const alertTitle = document.getElementById("alertTitle");
     const alertBody = document.getElementById("alertBody");
     const btnAlertOk = document.getElementById("btnAlertOk");
 
-    /** @type {{id:string, type:"stop"|"breakout"|"tp1"|"tp2", symbol:string, name:string, price:number, level:number}[]} */
+    /** @type {{id:string, type:"stop"|"stop_recover"|"breakout"|"breakdown"|"tp1"|"tp1_back"|"tp2"|"tp2_back", symbol:string, name:string, price:number, level:number}[]} */
     const alertQueue = [];
     const alertLastTs = new Map(); // key: `${id}:${type}:${levelKey}`
     const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -3630,8 +3720,12 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       const baseTitle = `${payload.name ? payload.name + " " : ""}${payload.symbol}`;
       const statusText =
         payload.type === "stop" ? "已止损" :
+        payload.type === "stop_recover" ? "收回止损" :
         payload.type === "tp2"  ? "已止盈2" :
+        payload.type === "tp2_back" ? "回落跌破止盈2" :
         payload.type === "tp1"  ? "已止盈1" :
+        payload.type === "tp1_back" ? "回落跌破止盈1" :
+        payload.type === "breakdown" ? "跌破突破位" :
         "已突破";
 
       if(alertTitle){
@@ -3646,13 +3740,25 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       const priceStr = formatCNY(payload.price);
       const levelStr = formatCNY(payload.level);
       const which =
-        payload.type === "stop" ? "止损位" :
-        payload.type === "tp2"  ? "止盈2" :
-        payload.type === "tp1"  ? "止盈1" :
-        "突破";
+        (payload.type === "stop" || payload.type === "stop_recover") ? "止损位" :
+        (payload.type === "tp2" || payload.type === "tp2_back")  ? "止盈2" :
+        (payload.type === "tp1" || payload.type === "tp1_back")  ? "止盈1" :
+        "突破位";
 
       if(alertBody){
-        alertBody.innerHTML = `现价 <b>${priceStr}</b> 达到 ${which} <b>${levelStr}</b> 价格位，请确认。`;
+        alertBody.innerHTML = (() => {
+          const act =
+            payload.type === "stop" ? "跌破" :
+            payload.type === "stop_recover" ? "回升至" :
+            payload.type === "breakout" ? "突破" :
+            payload.type === "breakdown" ? "跌破" :
+            payload.type === "tp2" ? "达到" :
+            payload.type === "tp2_back" ? "回落跌破" :
+            payload.type === "tp1" ? "达到" :
+            payload.type === "tp1_back" ? "回落跌破" :
+            "达到";
+          return `现价 <b>${priceStr}</b> ${act} ${which} <b>${levelStr}</b>`;
+        })();
       }
       alertOverlay.classList.add("show");
       alertOverlay.setAttribute("aria-hidden","false");
@@ -3683,6 +3789,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     }
     if(btnAlertOk){
       btnAlertOk.addEventListener("click", () => {
+        if(currentAlert) ackAlert(currentAlert);
         closeAlertModal();
         showNextAlert();
       });
@@ -3727,16 +3834,45 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       // Priority: stop-loss first (only when crossing the threshold)
       const stop = Number(it.stop);
       if(Number.isFinite(stop) && cur <= stop && (!hasPrev || prev > stop)){
-        if(canEnqueue("stop", stop)){
+        const ack = (alertAck[it.id] && alertAck[it.id].stop) ? String(alertAck[it.id].stop) : "";
+        if(ack !== priceKey(stop) && canEnqueue("stop", stop)){
           enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop });
         }
         return;
       }
+      // Bidirectional alerts (reverse crossings)
+      if(alertsBidirectional){
+        const bo0 = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
+        if(Number.isFinite(bo0) && hasPrev && prev >= bo0 && cur < bo0){
+          if(canEnqueue("breakdown", bo0)){
+            enqueueAlert({ id: it.id, type: "breakdown", symbol, name, price: cur, level: bo0 });
+          }
+          return;
+        }
+
+        const tp2d = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
+        if(Number.isFinite(tp2d) && hasPrev && prev >= tp2d && cur < tp2d){
+          if(canEnqueue("tp2_back", tp2d)){
+            enqueueAlert({ id: it.id, type: "tp2_back", symbol, name, price: cur, level: tp2d });
+          }
+          return;
+        }
+
+        const tp1d = Number(it.tp1);
+        if(Number.isFinite(tp1d) && hasPrev && prev >= tp1d && cur < tp1d){
+          if(canEnqueue("tp1_back", tp1d)){
+            enqueueAlert({ id: it.id, type: "tp1_back", symbol, name, price: cur, level: tp1d });
+          }
+          return;
+        }
+      }
+
 
       // Then take-profit (higher target first), only when crossing the threshold
       const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
       if(Number.isFinite(tp2) && cur >= tp2 && (!hasPrev || prev < tp2)){
-        if(canEnqueue("tp2", tp2)){
+        const ack = (alertAck[it.id] && alertAck[it.id].tp2) ? String(alertAck[it.id].tp2) : "";
+        if(ack !== priceKey(tp2) && canEnqueue("tp2", tp2)){
           enqueueAlert({ id: it.id, type: "tp2", symbol, name, price: cur, level: tp2 });
         }
         return;
@@ -3744,7 +3880,8 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
 
       const tp1 = Number(it.tp1);
       if(Number.isFinite(tp1) && cur >= tp1 && (!hasPrev || prev < tp1)){
-        if(canEnqueue("tp1", tp1)){
+        const ack = (alertAck[it.id] && alertAck[it.id].tp1) ? String(alertAck[it.id].tp1) : "";
+        if(ack !== priceKey(tp1) && canEnqueue("tp1", tp1)){
           enqueueAlert({ id: it.id, type: "tp1", symbol, name, price: cur, level: tp1 });
         }
         return;
@@ -3752,10 +3889,20 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
 
       const bo = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
       if(Number.isFinite(bo) && cur >= bo && (!hasPrev || prev < bo)){
-        if(canEnqueue("breakout", bo)){
+        const ack = (alertAck[it.id] && alertAck[it.id].breakout) ? String(alertAck[it.id].breakout) : "";
+        if(ack !== priceKey(bo) && canEnqueue("breakout", bo)){
           enqueueAlert({ id: it.id, type: "breakout", symbol, name, price: cur, level: bo });
         }
       }
+      if(alertsBidirectional){
+        const stopUp = Number(it.stop);
+        if(Number.isFinite(stopUp) && hasPrev && prev <= stopUp && cur > stopUp){
+          if(canEnqueue("stop_recover", stopUp)){
+            enqueueAlert({ id: it.id, type: "stop_recover", symbol, name, price: cur, level: stopUp });
+          }
+        }
+      }
+
     }
 
     function downloadJSON(filename, obj){
