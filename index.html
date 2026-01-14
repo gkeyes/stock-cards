@@ -91,7 +91,13 @@
     :root[data-theme="amoled"] .cards-toggle{
       background: rgba(11,11,11,.92);
       border-color: rgba(255,255,255,.16);
+      margin-left: auto;
       color: rgba(229,231,235,.85);
+    }
+    :root[data-theme="amoled"] .mkt-pill{
+      background: #0b0b0b;
+      border-color: rgba(255,255,255,.16);
+      color: rgba(229,231,235,.92);
     }
 
     :root[data-theme="amoled"] .dash-toggle{
@@ -368,9 +374,17 @@
       margin: 14px 0; /* spacer between dashboard and cards (vertical centering) */
       display:flex;
       align-items:center;
-      justify-content: flex-start;
-      position: relative;
+      gap: 10px;
+      flex-wrap: wrap;
+      row-gap: 10px;
       min-height: 56px;
+    }
+    .cards-hd-left{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+      row-gap: 10px;
     }
     .cards-title{
       font-size: 14px;
@@ -378,6 +392,40 @@
       color: var(--muted);
       letter-spacing: .2px;
     }
+    .mkt-pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(17,24,39,.10);
+      background: #fff;
+      color: rgba(17,24,39,.72);
+      font-weight: 900;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .mkt-pill.neutral{ color: var(--text); }
+    .mkt-pill.neutral .mp-name{ color: inherit; }
+    .mkt-pill .mp-name{
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--muted);
+      letter-spacing: .2px;
+    }
+    .mkt-pill .mp-val,
+    .mkt-pill .mp-chg{
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: .2px;
+    }
+    .mkt-pill .mp-val.up,
+    .mkt-pill .mp-chg.up{ color: var(--red); }
+    .mkt-pill .mp-val.down,
+    .mkt-pill .mp-chg.down{ color: var(--green-deep); }
+    .mkt-pill .mp-val.flat,
+    .mkt-pill .mp-chg.flat{ color: var(--muted); }
+
     .cards-toggle{
       display:inline-flex;
       align-items:center;
@@ -390,14 +438,10 @@
       font-weight: 900;
       cursor:pointer;
       user-select:none;
-
-      /* Center in the gap row (both X and Y) */
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      margin-left: auto;
+      white-space: nowrap;
     }
-    .cards-toggle:active{ transform: translate(-50%, -50%) translateY(1px); }
+    .cards-toggle:active{ transform: translateY(1px); }
     .cards-toggle:disabled{ opacity: .5; cursor: not-allowed; }
     .cards-toggle svg{ width: 18px; height: 18px; transition: transform .15s ease; }
     .cards-toggle.collapsed svg{ transform: rotate(180deg); }
@@ -1603,8 +1647,16 @@
       <div class="dash-bd" id="dashBody"></div>
     </div>
 
-    <div class="cards-hd" id="cardsHeader">
-      <button class="cards-toggle" id="cardsToggle" type="button" aria-label="全部折叠" title="全部折叠">
+    <div class="cards-hd" id="cardsHeader" aria-label="批量操作">
+      <div class="cards-hd-left" aria-label="市场概览">
+        <div class="mkt-pill neutral" id="mktSSE" aria-label="上证指数">
+          <span class="mp-name">上证指数</span>
+          <span class="mp-val" id="sseVal">----</span>
+          <span class="mp-chg" id="sseChg">--.--%</span>
+        </div>
+      </div>
+
+      <button id="cardsToggle" class="cards-toggle" type="button" title="全部折叠" aria-label="全部折叠">
         <span id="cardsToggleText">全部折叠</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M6 9l6 6 6-6"></path>
@@ -2174,7 +2226,10 @@ function isAutoRefreshLocked(){
     const dashToggleTextEl = document.getElementById("dashToggleText");
     const cardsToggleEl = document.getElementById("cardsToggle");
     const cardsToggleTextEl = document.getElementById("cardsToggleText");
-    const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
+    const sseValEl = document.getElementById("sseVal");
+    const sseChgEl = document.getElementById("sseChg");
+    const mktSSEEl = document.getElementById("mktSSE");
+const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
     const LS_CARD_COLLAPSED = "stock-cards-card-collapsed-v1";
     let cardCollapsedMap = null; // { [id]: 1 }
 
@@ -2253,6 +2308,51 @@ function isAutoRefreshLocked(){
         setAllCardsCollapsed(anyExpanded);
       });
     }
+
+
+    let marketMiniLock = false;
+    async function updateMarketMini(){
+      if(marketMiniLock) return;
+      if(!sseValEl || !sseChgEl) return;
+      marketMiniLock = true;
+      try{
+        const [q] = await fetchTencentBatch(["sh000001"]);
+        const px = q && Number.isFinite(Number(q.price)) ? Number(q.price) : NaN;
+        const prev = q && Number.isFinite(Number(q.prevClose)) ? Number(q.prevClose) : NaN;
+
+        if(!Number.isFinite(px) || !Number.isFinite(prev) || prev <= 0){
+          sseValEl.textContent = "----";
+          sseChgEl.textContent = "--.--%";
+          sseValEl.className = "mp-val";
+          sseChgEl.className = "mp-chg flat";
+          if(mktSSEEl) mktSSEEl.title = "上证指数 ---- --.--%";
+          return;
+        }
+
+        const pct = (px - prev) / prev * 100;
+        let dir = "flat";
+        if(pct > 1e-8) dir = "up";
+        else if(pct < -1e-8) dir = "down";
+
+        const arrow = dir === "up" ? "▲" : (dir === "down" ? "▼" : "");
+        const pctTxt = Number.isFinite(pct) ? `${arrow}${Math.abs(pct).toFixed(2)}%` : "--.--%";
+
+        sseValEl.textContent = px.toFixed(2);
+        sseChgEl.textContent = pctTxt;
+        sseValEl.className = "mp-val";
+        sseChgEl.className = `mp-chg ${dir}`;
+        if(mktSSEEl) mktSSEEl.title = `上证指数 ${px.toFixed(2)} ${pctTxt}`;
+      }catch(e){
+        sseValEl.textContent = "----";
+        sseChgEl.textContent = "--.--%";
+        sseValEl.className = "mp-val";
+        sseChgEl.className = "mp-chg flat";
+        if(mktSSEEl) mktSSEEl.title = "上证指数 ---- --.--%";
+      }finally{
+        marketMiniLock = false;
+      }
+    }
+
 
 
     const LS_BREAKOUT_TS = "stock-cards-breakout-ts-v1";
@@ -2686,7 +2786,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
 
     function render(){
       renderDashboard();
-      listEl.innerHTML = "";
+listEl.innerHTML = "";
       updateCardsToggleUi();
       if(items.length === 0){
         const empty = document.createElement("div");
@@ -3474,8 +3574,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     function updateValuesOnly(){
       // Update dashboard summary (does not touch list DOM)
       renderDashboard();
-
-      let missing = false;
+let missing = false;
       for(const it of items){
         if(!updateCardValues(it)) missing = true;
       }
@@ -4303,15 +4402,19 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     function startAutoRefresh(){
       if(timer) clearInterval(timer);
       timer = setInterval(() => {
-        if ((allowBgRefresh || document.visibilityState === "visible") && !isAutoRefreshLocked()){
-          if (document.visibilityState === "visible") checkNewDayResetPrompt();
-          updateAllPrices();
+        if (allowBgRefresh || document.visibilityState === "visible"){
+          updateMarketMini();
+if(!isAutoRefreshLocked()){
+            if (document.visibilityState === "visible") checkNewDayResetPrompt();
+            updateAllPrices();
+          }
         }
       }, 5000);
     }
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible"){
         checkNewDayResetPrompt();
+        updateMarketMini();
         updateAllPrices();
       }
     });
@@ -4364,6 +4467,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     persist();
     checkNewDayResetPrompt();
     startAutoRefresh();
+    updateMarketMini();
     updateAllPrices();
   </script>
 </body>
