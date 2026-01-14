@@ -2636,7 +2636,7 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
           else if(chgPct < -1e-8) chgClass = "down";
           const sign = chgPct > 0 ? "+" : "";
           chgText = `${sign}${chgPct.toFixed(2)}%`;
-          chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
+          chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')}${Math.abs(chgPct).toFixed(2)}%`;
         }
 
         const stopDelta = formatDeltaPct(cur, it.stop);
@@ -3006,7 +3006,7 @@ card.innerHTML = `
         const chgPct = (cur - prev) / prev * 100;
         if(chgPct > 1e-8) chgClass = "up";
         else if(chgPct < -1e-8) chgClass = "down";
-        chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
+        chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')}${Math.abs(chgPct).toFixed(2)}%`;
       }
       return { chgDisp, chgClass };
     }
