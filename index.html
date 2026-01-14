@@ -422,6 +422,9 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    .dash-table .core-change{ font-size: inherit; }
+
     .dash-table th{
       color: var(--muted);
       font-weight: 900;
@@ -1695,7 +1698,7 @@
           <div style="min-width:0;">
             <div style="font-weight:900;">阈值弹窗通知</div>
             <div style="margin-top:2px;color:var(--muted);font-size:12px;line-height:1.35;">
-              当现价触发止损位/突破时弹窗提醒（仅弹一次，直到你修改对应价位）。
+              当现价穿越止损/突破/止盈阈值时弹窗提醒（同一阈值每 5 分钟最多一次，可重复）。
             </div>
           </div>
           <label class="switch" title="阈值弹窗通知">
@@ -2354,6 +2357,25 @@ function isAutoRefreshLocked(){
           const el = document.getElementById(id);
           if(!el) return;
 
+          // Auto-expand card when locating from dashboard
+          try{
+            if(el.classList.contains("collapsed")){
+              const item = (Array.isArray(items) ? items.find(x => String((x && x.symbol) || "").trim() === sym) : null);
+              const itemId = item && item.id ? String(item.id) : "";
+              if(itemId){
+                setCardCollapsed(itemId, false);
+                const label = "折叠";
+                el.querySelectorAll(`button[data-act="collapse"][data-id="${itemId}"]`).forEach(b => {
+                  b.title = label;
+                  b.setAttribute("aria-label", label);
+                });
+                updateCardsToggleUi();
+              }
+              el.classList.remove("collapsed");
+            }
+          }catch(_){}
+
+
           // Prefer scrollIntoView to respect nested scroll containers (more robust on mobile).
           try{
             el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2443,7 +2465,7 @@ function isAutoRefreshLocked(){
               <th style="width:30%;">状态</th>
               <th style="width:34%;">股票</th>
               <th class="num" style="width:18%;">现价</th>
-              <th class="num" style="width:18%;">触发位</th>
+              <th class="num" style="width:18%;">涨跌幅</th>
             </tr>
           </thead>
           <tbody>`;
@@ -2468,13 +2490,15 @@ function isAutoRefreshLocked(){
             const durPill = (dur && dur !== "--") ? `<span class="d-tag d-dur">${escapeHtml(dur)}</span>` : "";
             tags = `<span class="d-tags"><span class="d-tag d-break">已突破</span>${durPill}</span>`;
           }
-          const level = kind === "stop" ? Number(it.stop) : Number(it.breakout);
-          const levelTxt = Number.isFinite(level) ? formatCNY(level) : "--";
+          const prevClose = Number(it.prevClose);
+          const curPx = Number(it.price);
+          const { chgDisp, chgClass } = computeChangeDisplay(prevClose, curPx);
+          const chgHtml = `<span class="core-change ${escapeHtml(chgClass)}">${escapeHtml(chgDisp)}</span>`;
           html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
             <td>${tags}</td>
             <td class="stock" title="${escapeHtml(stockTitle(it))}">${dashStockCell(it)}</td>
             <td class="num">${formatCNY(it.price)}</td>
-            <td class="num">${levelTxt}</td>
+            <td class="num">${chgHtml}</td>
           </tr>`;
         }
         html += `</tbody></table></div>`;
@@ -3659,7 +3683,6 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     }
     if(btnAlertOk){
       btnAlertOk.addEventListener("click", () => {
-        if(currentAlert) ackAlert(currentAlert);
         closeAlertModal();
         showNextAlert();
       });
@@ -3704,8 +3727,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       // Priority: stop-loss first (only when crossing the threshold)
       const stop = Number(it.stop);
       if(Number.isFinite(stop) && cur <= stop && (!hasPrev || prev > stop)){
-        const ack = (alertAck[it.id] && alertAck[it.id].stop) ? String(alertAck[it.id].stop) : "";
-        if(ack !== priceKey(stop) && canEnqueue("stop", stop)){
+        if(canEnqueue("stop", stop)){
           enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop });
         }
         return;
@@ -3714,8 +3736,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
       // Then take-profit (higher target first), only when crossing the threshold
       const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
       if(Number.isFinite(tp2) && cur >= tp2 && (!hasPrev || prev < tp2)){
-        const ack = (alertAck[it.id] && alertAck[it.id].tp2) ? String(alertAck[it.id].tp2) : "";
-        if(ack !== priceKey(tp2) && canEnqueue("tp2", tp2)){
+        if(canEnqueue("tp2", tp2)){
           enqueueAlert({ id: it.id, type: "tp2", symbol, name, price: cur, level: tp2 });
         }
         return;
@@ -3723,8 +3744,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
 
       const tp1 = Number(it.tp1);
       if(Number.isFinite(tp1) && cur >= tp1 && (!hasPrev || prev < tp1)){
-        const ack = (alertAck[it.id] && alertAck[it.id].tp1) ? String(alertAck[it.id].tp1) : "";
-        if(ack !== priceKey(tp1) && canEnqueue("tp1", tp1)){
+        if(canEnqueue("tp1", tp1)){
           enqueueAlert({ id: it.id, type: "tp1", symbol, name, price: cur, level: tp1 });
         }
         return;
@@ -3732,8 +3752,7 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
 
       const bo = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
       if(Number.isFinite(bo) && cur >= bo && (!hasPrev || prev < bo)){
-        const ack = (alertAck[it.id] && alertAck[it.id].breakout) ? String(alertAck[it.id].breakout) : "";
-        if(ack !== priceKey(bo) && canEnqueue("breakout", bo)){
+        if(canEnqueue("breakout", bo)){
           enqueueAlert({ id: it.id, type: "breakout", symbol, name, price: cur, level: bo });
         }
       }
