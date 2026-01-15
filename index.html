@@ -1704,19 +1704,19 @@
         <div class="grid grid-thresh">
           <div class="field">
             <label>止损</label>
-            <input id="fStop" inputmode="decimal" placeholder="12.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input id="fStop" inputmode="decimal" placeholder="输入止损价"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
             <label>支撑（可多个）</label>
-            <input id="fSupport" inputmode="decimal" placeholder="12.30, 12.10, 11.90 例如：14.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input id="fSupport" inputmode="decimal" placeholder="支撑价（逗号/空格/换行分隔）"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>突破（可多个，可选）</label>
-            <input id="fBreakout" inputmode="decimal" placeholder="16.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <label>突破（可多个）</label>
+            <input id="fBreakout" inputmode="decimal" placeholder="突破价（逗号/空格/换行分隔）"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
             <label>止盈（可多个）</label>
-            <input id="fTp1" inputmode="decimal" placeholder="19.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input id="fTp1" inputmode="decimal" placeholder="止盈价（逗号/空格/换行分隔）"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field" style="display:none">
             <label>止盈2（可选）</label>
@@ -1978,27 +1978,17 @@ function isAutoRefreshLocked(){
 
     function getSupportLevels(it){
       const fromLevels = (it && it.levels && Array.isArray(it.levels.support)) ? it.levels.support : [];
-      const legacy = planNum(it && it.support);
-      const out = [...fromLevels, ...(Number.isFinite(legacy) ? [legacy] : [])];
-      return uniqSorted(out);
+      return uniqSorted(fromLevels);
     }
 
     function getBreakoutLevels(it){
       const fromLevels = (it && it.levels && Array.isArray(it.levels.breakout)) ? it.levels.breakout : [];
-      const legacy = planNum(it && it.breakout);
-      const out = [...fromLevels, ...(Number.isFinite(legacy) ? [legacy] : [])];
-      return uniqSorted(out);
+      return uniqSorted(fromLevels);
     }
 
     function getTpLevels(it){
       const fromLevels = (it && it.levels && Array.isArray(it.levels.tp)) ? it.levels.tp : [];
-      const t1 = planNum(it && it.tp1);
-      const t2 = planNum(it && it.tp2);
-      const out = [...fromLevels,
-        ...(Number.isFinite(t1) ? [t1] : []),
-        ...(Number.isFinite(t2) ? [t2] : []),
-      ];
-      return uniqSorted(out);
+      return uniqSorted(fromLevels);
     }
 
     function buildPlanLevels(it){
@@ -2070,36 +2060,36 @@ function isAutoRefreshLocked(){
         if(id === undefined || id === null || id === "") id = genId();
         id = String(id);
 
+        const symbol = String(it.symbol || "").trim();
+        const name = (it.name !== undefined) ? it.name : "";
+        const note = (it.note !== undefined) ? it.note : "";
+
         const stop = planNum(it.stop);
 
-        const supportLv = getSupportLevels(it);
-        const breakoutLv = getBreakoutLevels(it);
-        const tpLv = getTpLevels(it);
-
-        const support = supportLv.length ? supportLv[supportLv.length - 1] : null;
-        const breakout = breakoutLv.length ? breakoutLv[0] : null;
-        const tp1 = tpLv.length ? tpLv[0] : null;
-        const tp2 = tpLv.length > 1 ? tpLv[1] : null;
+        const levelsObj = (it.levels && typeof it.levels === "object") ? it.levels : {};
+        const supportLv = uniqSorted(Array.isArray(levelsObj.support) ? levelsObj.support : []);
+        const breakoutLv = uniqSorted(Array.isArray(levelsObj.breakout) ? levelsObj.breakout : []);
+        const tpLv = uniqSorted(Array.isArray(levelsObj.tp) ? levelsObj.tp : []);
 
         return {
-          ...it,
           id,
-          levels: {
-            support: supportLv,
-            breakout: breakoutLv,
-            tp: tpLv,
-          },
+          symbol,
+          name,
+          note,
+          marketCode: it.marketCode,
+          levels: { support: supportLv, breakout: breakoutLv, tp: tpLv },
           stop: Number.isFinite(stop) ? stop : null,
-          support,
-          breakout,
-          tp1,
-          tp2,
+
+          // Quote / runtime fields (keep stable shape)
+          price: planNum(it.price),
           prevClose: planNum(it.prevClose),
           open: planNum(it.open),
           high: planNum(it.high),
           low: planNum(it.low),
           avgPrice: planNum(it.avgPrice),
           volRatio: planNum(it.volRatio),
+          status: String(it.status || "监控中"),
+          updatedAt: String(it.updatedAt || ""),
         };
       });
     }
@@ -2854,8 +2844,9 @@ const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
 
     const gap = x.gapPct;
     const gapTxt = Number.isFinite(gap) ? `${gap > 0 ? "+" : ""}${gap.toFixed(2)}%` : "--";
-    const br = Number(it.breakout);
-    const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
+    const brLv = getBreakoutLevels(it);
+    const br = brLv.length ? Number(brLv[0]) : NaN;
+const brTxt = Number.isFinite(br) ? formatCNY(br) : "--";
 
     html += `<tr class="dash-row" data-symbol="${escapeHtml(it.symbol)}">
       <td class="stock" title="${escapeHtml(stockTitle(it))}">${dashStockCell(it, arrowHtml)}</td>
@@ -2954,8 +2945,10 @@ listEl.innerHTML = "";
       }
 
       items.forEach((it) => {
-        const hasBreakout = Number.isFinite(it.breakout);
-        const hasTp2 = Number.isFinite(it.tp2);
+        const _boLv = getBreakoutLevels(it);
+        const _tpLv = getTpLevels(it);
+        const hasBreakout = _boLv.length > 0;
+        const hasTp2 = _tpLv.length > 1;
         let colsClass = "cols-4";
         const pillCount = 3 + (hasBreakout ? 1 : 0) + (hasTp2 ? 1 : 0);
         if(pillCount === 3) colsClass = "cols-3";
@@ -2992,11 +2985,17 @@ listEl.innerHTML = "";
           chgDisp = `${chgPct > 0 ? '▲' : (chgPct < 0 ? '▼' : '•')} ${Math.abs(chgPct).toFixed(2)}%`;
         }
 
+        const _supportLv = getSupportLevels(it);
+        const _supportRef = _supportLv.length ? _supportLv[_supportLv.length - 1] : NaN;
+        const _breakoutRef = _boLv.length ? _boLv[0] : NaN;
+        const _tp1Ref = _tpLv.length ? _tpLv[0] : NaN;
+        const _tp2Ref = _tpLv.length > 1 ? _tpLv[1] : NaN;
+
         const stopDelta = formatDeltaPct(cur, it.stop);
-        const supportDelta = formatDeltaPct(cur, it.support);
-        const breakoutDelta = Number.isFinite(it.breakout) ? formatDeltaPct(cur, it.breakout) : "--";
-        const tp1Delta = formatDeltaPct(cur, it.tp1);
-        const tp2Delta = Number.isFinite(it.tp2) ? formatDeltaPct(cur, it.tp2) : "--";
+        const supportDelta = formatDeltaPct(cur, _supportRef);
+        const breakoutDelta = Number.isFinite(_breakoutRef) ? formatDeltaPct(cur, _breakoutRef) : "--";
+        const tp1Delta = formatDeltaPct(cur, _tp1Ref);
+        const tp2Delta = Number.isFinite(_tp2Ref) ? formatDeltaPct(cur, _tp2Ref) : "--";
 
         const card = document.createElement("div");
         const cardCollapsed = isCardCollapsed(it.id);
@@ -3951,7 +3950,7 @@ card.innerHTML = `
 
     let alertsBidirectional = false;
     try{ alertsBidirectional = localStorage.getItem(LS_ALERTS_BI_KEY) === "1"; }catch(_){ /* ignore */ }
-    /** @type {Record<string, {stop?:string, breakout?:string, tp1?:string, tp2?:string}>} */
+    /** @type {Record<string, {stop?:string}>} */
     let alertAck = {};
     try{
       alertAck = JSON.parse(localStorage.getItem(LS_ALERT_ACK_KEY) || "{}") || {};
@@ -4003,6 +4002,7 @@ card.innerHTML = `
     /** @type {{id:string, type:"stop"|"stop_recover"|"breakout"|"breakdown"|"tp1"|"tp1_back"|"tp2"|"tp2_back", symbol:string, name:string, price:number, level:number}[]} */
     const alertQueue = [];
     const alertLastTs = new Map(); // key: `${id}:${type}:${levelKey}`
+    const alertPrimedIds = new Set(); // per-session baseline: skip first alert evaluation after load
     const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
     let alertShowing = false;
     let currentAlert = null;
@@ -4099,100 +4099,177 @@ card.innerHTML = `
       const cur = planNum(it.price);
       if(!Number.isFinite(cur)) return;
 
+      // Per-session priming: on first valid price update after page load / refresh, do not alert.
+      // This prevents "alerts firing immediately on refresh" when current state already satisfies conditions.
+      if(!alertPrimedIds.has(it.id)){
+        alertPrimedIds.add(it.id);
+        return;
+      }
+
       const prev = planNum(prevPrice);
       const hasPrev = Number.isFinite(prev);
+      if(!hasPrev) return; // require a previous tick to detect crossings
 
       const name = String(it.name || "").trim();
       const symbol = String(it.symbol || "").trim();
       const now = Date.now();
 
+      const ackKey = (type, level) => `${type}:${priceKey(level)}`;
+      const isAcked = (type, level) => {
+        const pk = priceKey(level);
+        if(!pk) return false;
+        return !!(alertAck[it.id] && alertAck[it.id][`${type}:${pk}`]);
+      };
+      let ackDirty = false;
+      const clearAck = (type, level) => {
+        const pk = priceKey(level);
+        if(!pk) return;
+        const rec = alertAck[it.id];
+        if(rec && rec[`${type}:${pk}`]){
+          delete rec[`${type}:${pk}`];
+          ackDirty = true;
+        }
+      };
+      const flushAck = () => { if(ackDirty){ saveAlertAck(); ackDirty = false; } };
+
       const canEnqueue = (type, level) => {
         const levelKey = priceKey(level);
-        const k = `${it.id}:${type}:${levelKey}`;
+        if(!levelKey) return false;
 
-        // avoid duplicates while an alert is being shown or queued
+        // Prevent duplicates in queue / currently showing
         if(currentAlert && currentAlert.id === it.id && currentAlert.type === type && priceKey(currentAlert.level) === levelKey) return false;
-        if(alertQueue.some(x => x.id === it.id && x.type === type && priceKey(x.level) === levelKey)) return false;
+        for(const a of alertQueue){
+          if(a && a.id === it.id && a.type === type && priceKey(a.level) === levelKey) return false;
+        }
 
+        // Cooldown per (id,type,level) to avoid spam on rapid oscillation
+        const k = `${it.id}:${type}:${levelKey}`;
         const last = alertLastTs.get(k) || 0;
         if(now - last < ALERT_COOLDOWN_MS) return false;
         alertLastTs.set(k, now);
         return true;
       };
 
-      // Priority: stop-loss first (repeatable by cooldown while condition holds)
+      // ========== 1) Stop-loss (crossing only) ==========
       const stop = planNum(it.stop);
-      if(Number.isFinite(stop) && cur <= stop){
-        if(canEnqueue("stop", stop)){
-          enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop, label: "止损" });
-        }
-        return;
-      }
+      if(Number.isFinite(stop)){
+        // Reset forward stop ack once price recovers above stop
+        if(cur > stop) clearAck("stop", stop);
 
-      // Stop recover (crossing only)
-      if(alertsBidirectional && Number.isFinite(stop) && hasPrev && prev <= stop && cur > stop){
-        if(canEnqueue("stop_recover", stop)){
-          enqueueAlert({ id: it.id, type: "stop_recover", symbol, name, price: cur, level: stop, label: "止损回收" });
+        if(prev > stop && cur <= stop){
+          if(!isAcked("stop", stop) && canEnqueue("stop", stop)){
+            enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop, label: "止损" });
+            ackAlert({ id: it.id, type: "stop", level: stop });
+          }
+          flushAck();
+          return;
         }
-        return;
-      }
 
-      // Take-profit (multi-level, highest first; repeatable by cooldown while condition holds)
-      const tps = getTpLevels(it);
-      if(tps.length){
-        for(let i=tps.length-1;i>=0;i--){
-          const level = tps[i];
-          const label = `止盈${i+1}`;
-          if(cur >= level){
-            if(canEnqueue("tp", level)){
-              enqueueAlert({ id: it.id, type: "tp", symbol, name, price: cur, level, label });
+        // Optional bidirectional: stop recover (crossing only)
+        if(alertsBidirectional){
+          // Reset recover ack when price falls back below stop
+          if(cur <= stop) clearAck("stop_recover", stop);
+
+          if(prev <= stop && cur > stop){
+            if(!isAcked("stop_recover", stop) && canEnqueue("stop_recover", stop)){
+              enqueueAlert({ id: it.id, type: "stop_recover", symbol, name, price: cur, level: stop, label: "止损回升" });
+              ackAlert({ id: it.id, type: "stop_recover", level: stop });
             }
+            flushAck();
             return;
           }
         }
-
-        // reverse crossing (tp_back): highest crossed first
-        if(alertsBidirectional && hasPrev){
-          for(let i=tps.length-1;i>=0;i--){
-            const level = tps[i];
-            if(prev >= level && cur < level){
-              const label = `止盈${i+1}`;
-              if(canEnqueue("tp_back", level)){
-                enqueueAlert({ id: it.id, type: "tp_back", symbol, name, price: cur, level, label });
-              }
-              return;
-            }
-          }
-        }
       }
 
-      // Breakout (multi-level, highest first; repeatable by cooldown while condition holds)
+      // ========== 2) Breakout levels ==========
       const bos = getBreakoutLevels(it);
       if(bos.length){
+        // Reset forward breakout ack for levels currently not held
+        for(const level of bos){
+          if(cur < level) clearAck("breakout", level);
+        }
+
+        // Forward breakout crossing: prev < level && cur >= level (highest priority level)
         for(let i=bos.length-1;i>=0;i--){
           const level = bos[i];
-          const label = bos.length > 1 ? `突破${i+1}` : "突破";
-          if(cur >= level){
-            if(canEnqueue("breakout", level)){
+          if(prev < level && cur >= level){
+            const label = bos.length > 1 ? `突破${i+1}` : "突破";
+            if(!isAcked("breakout", level) && canEnqueue("breakout", level)){
               enqueueAlert({ id: it.id, type: "breakout", symbol, name, price: cur, level, label });
+              ackAlert({ id: it.id, type: "breakout", level });
             }
+            flushAck();
             return;
           }
         }
 
-        if(alertsBidirectional && hasPrev){
+        // Optional bidirectional: breakdown crossing (highest priority level)
+        if(alertsBidirectional){
+          // Reset breakdown ack when price reclaims above level
+          for(const level of bos){
+            if(cur >= level) clearAck("breakdown", level);
+          }
+
           for(let i=bos.length-1;i>=0;i--){
             const level = bos[i];
             if(prev >= level && cur < level){
               const label = bos.length > 1 ? `突破${i+1}` : "突破";
-              if(canEnqueue("breakdown", level)){
+              if(!isAcked("breakdown", level) && canEnqueue("breakdown", level)){
                 enqueueAlert({ id: it.id, type: "breakdown", symbol, name, price: cur, level, label });
+                ackAlert({ id: it.id, type: "breakdown", level });
               }
+              flushAck();
               return;
             }
           }
         }
       }
+
+      // ========== 3) Take-profit levels ==========
+      const tps = getTpLevels(it);
+      if(tps.length){
+        // Reset forward TP ack for levels currently not held
+        for(const level of tps){
+          if(cur < level) clearAck("tp", level);
+        }
+
+        // Forward TP crossing (highest TP crossed)
+        for(let i=tps.length-1;i>=0;i--){
+          const level = tps[i];
+          if(prev < level && cur >= level){
+            const label = tps.length > 1 ? `止盈${i+1}` : "止盈";
+            if(!isAcked("tp", level) && canEnqueue("tp", level)){
+              enqueueAlert({ id: it.id, type: "tp", symbol, name, price: cur, level, label });
+              ackAlert({ id: it.id, type: "tp", level });
+            }
+            flushAck();
+            return;
+          }
+        }
+
+        // Optional bidirectional: tp_back crossing
+        if(alertsBidirectional){
+          // Reset tp_back ack when price reclaims above level
+          for(const level of tps){
+            if(cur >= level) clearAck("tp_back", level);
+          }
+
+          for(let i=tps.length-1;i>=0;i--){
+            const level = tps[i];
+            if(prev >= level && cur < level){
+              const label = tps.length > 1 ? `止盈${i+1}` : "止盈";
+              if(!isAcked("tp_back", level) && canEnqueue("tp_back", level)){
+                enqueueAlert({ id: it.id, type: "tp_back", symbol, name, price: cur, level, label });
+                ackAlert({ id: it.id, type: "tp_back", level });
+              }
+              flushAck();
+              return;
+            }
+          }
+        }
+      }
+
+      flushAck();
     }
 
     function downloadJSON(filename, obj){
@@ -4227,52 +4304,31 @@ card.innerHTML = `
         if(!symbol) throw new Error("MISSING_SYMBOL");
 
         const rawLevels = (o && o.levels && typeof o.levels === "object") ? o.levels : {};
-        const lvSupport = uniqSorted(Array.isArray(rawLevels.support) ? rawLevels.support : []);
-        const lvBreakout = uniqSorted(Array.isArray(rawLevels.breakout) ? rawLevels.breakout : []);
-        const lvTp = uniqSorted(Array.isArray(rawLevels.tp) ? rawLevels.tp : []);
-
-        // Merge legacy scalar fields into levels (best-effort).
-        const s0 = planNum(o && o.support);
-        const b0 = planNum(o && o.breakout);
-        const t10 = planNum(o && o.tp1);
-        const t20 = planNum(o && o.tp2);
-
         const levels = {
-          support: uniqSorted([...lvSupport, ...(Number.isFinite(s0) ? [s0] : [])]),
-          breakout: uniqSorted([...lvBreakout, ...(Number.isFinite(b0) ? [b0] : [])]),
-          tp: uniqSorted([...lvTp, ...(Number.isFinite(t10) ? [t10] : []), ...(Number.isFinite(t20) ? [t20] : [])]),
+          support: uniqSorted(Array.isArray(rawLevels.support) ? rawLevels.support : []),
+          breakout: uniqSorted(Array.isArray(rawLevels.breakout) ? rawLevels.breakout : []),
+          tp: uniqSorted(Array.isArray(rawLevels.tp) ? rawLevels.tp : []),
         };
-
-        const support = levels.support.length ? levels.support[levels.support.length - 1] : null;
-        const breakout = levels.breakout.length ? levels.breakout[0] : null;
-        const tp1 = levels.tp.length ? levels.tp[0] : null;
-        const tp2 = levels.tp.length > 1 ? levels.tp[1] : null;
 
         const stop = planNum(o && o.stop);
 
         return {
-          id: String((o && o.id) || genId()),
+          id: String((o && o.id) ? o.id : genId()),
           symbol,
           name: (o && o.name) ? String(o.name) : "",
           note: (o && o.note) ? String(o.note) : "",
           levels,
           stop: Number.isFinite(stop) ? stop : null,
-          support,
-          breakout,
-          tp1,
-          tp2,
-          // runtime fields (best-effort defaults)
-          price: planNum(o && o.price),
-          prevClose: planNum(o && o.prevClose),
-          open: planNum(o && o.open),
-          high: planNum(o && o.high),
-          low: planNum(o && o.low),
-          avgPrice: planNum(o && o.avgPrice),
-          volRatio: planNum(o && o.volRatio),
-          status: (o && o.status) ? String(o.status) : "监控中",
-          updatedAt: (o && o.updatedAt) ? String(o.updatedAt) : "",
-          breakoutStart: (o && o.breakoutStart) ? String(o.breakoutStart) : "",
-          marketCode: (o && o.marketCode) ? String(o.marketCode) : "",
+          // runtime fields init
+          price: NaN,
+          prevClose: NaN,
+          open: NaN,
+          high: NaN,
+          low: NaN,
+          avgPrice: NaN,
+          volRatio: NaN,
+          status: "监控中",
+          updatedAt: "",
         };
       });
 
@@ -4476,10 +4532,7 @@ card.innerHTML = `
         }
       }
 
-      const derivedSupport = supports.length ? supports[supports.length - 1] : null;
-      const derivedBreakout = breakouts.length ? breakouts[0] : null;
-      const derivedTp1 = tps.length ? tps[0] : null;
-      const derivedTp2 = tps.length > 1 ? tps[1] : null;
+      // Note: deprecated scalar plan levels (support/breakout/tp1/tp2) are no longer maintained.
 
       if(modalMode === "add"){
         const it = {
@@ -4497,10 +4550,6 @@ card.innerHTML = `
           note,
           levels: { support: supports, breakout: breakouts, tp: tps },
           stop: (stopOpt === null ? null : stopOpt),
-          support: derivedSupport,
-          breakout: derivedBreakout,
-          tp1: derivedTp1,
-          tp2: derivedTp2,
         };
         items.unshift(it);
       }else{
@@ -4510,11 +4559,12 @@ card.innerHTML = `
         it.note = note;
         it.levels = { support: supports, breakout: breakouts, tp: tps };
         it.stop = (stopOpt === null ? null : stopOpt);
-        it.support = derivedSupport;
-        it.breakout = derivedBreakout;
-        it.tp1 = derivedTp1;
-        it.tp2 = derivedTp2;
-      }
+          // Remove deprecated scalar plan levels (new schema uses it.levels.* only)
+          try{ delete it.support; }catch(_){ it.support = undefined; }
+          try{ delete it.breakout; }catch(_){ it.breakout = undefined; }
+          try{ delete it.tp1; }catch(_){ it.tp1 = undefined; }
+          try{ delete it.tp2; }catch(_){ it.tp2 = undefined; }
+}
 
       persist();
       render();
