@@ -1000,14 +1000,17 @@
     #alertTitle .alert-breakout{ color: var(--pill-blue-text); }
     #alertTitle .alert-tp1{ color: var(--pill-green-text); }
     #alertTitle .alert-tp2{ color: var(--pill-green-text); }
+    #alertTitle .alert-tp{ color: var(--pill-green-text); }
     #alertTitle .alert-breakdown{ color: var(--pill-blue-text); }
     #alertTitle .alert-stop_recover{ color: var(--pill-amber-text); }
     #alertTitle .alert-tp1_back{ color: var(--pill-amber-text); }
     #alertTitle .alert-tp2_back{ color: var(--pill-amber-text); }
+    #alertTitle .alert-tp_back{ color: var(--pill-amber-text); }
     .modal-bd{
       padding: 14px 16px 6px 16px;
       overflow:auto;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     /* Make form single-column for phones */
@@ -1582,7 +1585,15 @@
       .meter-mark .mark-chip{ max-width: 104px; }
     }
 
-  </style>
+  
+
+    /* Mobile: prevent iOS input focus zoom */
+    @media screen and (max-width: 768px){
+      input, textarea, select{
+        font-size: 16px !important;
+      }
+    }
+</style>
 </head>
 <body>
   <div class="app">
@@ -1696,18 +1707,18 @@
             <input id="fStop" inputmode="decimal" placeholder="12.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>支撑</label>
-            <input id="fSupport" inputmode="decimal" placeholder="14.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <label>支撑（可多个）</label>
+            <input id="fSupport" inputmode="decimal" placeholder="12.30, 12.10, 11.90 例如：14.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>突破（可选）</label>
+            <label>突破（可多个，可选）</label>
             <input id="fBreakout" inputmode="decimal" placeholder="16.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <div class="field">
-            <label>止盈1</label>
+            <label>止盈（可多个）</label>
             <input id="fTp1" inputmode="decimal" placeholder="19.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
-          <div class="field">
+          <div class="field" style="display:none">
             <label>止盈2（可选）</label>
             <input id="fTp2" inputmode="decimal" placeholder="22.00"  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
@@ -1923,29 +1934,172 @@ function isAutoRefreshLocked(){
     }
 
 
+    function planNum(v){
+      if(v === null || v === undefined) return NaN;
+      if(typeof v === "number") return Number.isFinite(v) ? v : NaN;
+      const s = String(v).replaceAll(",","").trim();
+      if(!s) return NaN;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function uniqSorted(nums){
+      const arr = Array.isArray(nums) ? nums.slice() : [];
+      const clean = arr
+        .map(planNum)
+        .filter(n => Number.isFinite(n) && n > 0)
+        .sort((a,b) => a-b);
+      const out = [];
+      for(const n of clean){
+        if(out.length === 0){
+          out.push(n);
+        }else{
+          const last = out[out.length - 1];
+          const eps = Math.max(1e-6, Math.abs(last) * 1e-8);
+          if(Math.abs(n - last) > eps) out.push(n);
+        }
+      }
+      return out;
+    }
+
+    function parseNumList(v){
+      const s = String(v ?? "").trim();
+      if(!s) return { nums: [], bad: [] };
+      const parts = s.split(/[\s,，;；]+/).filter(Boolean);
+      const nums = [];
+      const bad = [];
+      for(const raw of parts){
+        const n = planNum(raw);
+        if(Number.isFinite(n)) nums.push(n);
+        else bad.push(raw);
+      }
+      return { nums: uniqSorted(nums), bad };
+    }
+
+    function getSupportLevels(it){
+      const fromLevels = (it && it.levels && Array.isArray(it.levels.support)) ? it.levels.support : [];
+      const legacy = planNum(it && it.support);
+      const out = [...fromLevels, ...(Number.isFinite(legacy) ? [legacy] : [])];
+      return uniqSorted(out);
+    }
+
+    function getBreakoutLevels(it){
+      const fromLevels = (it && it.levels && Array.isArray(it.levels.breakout)) ? it.levels.breakout : [];
+      const legacy = planNum(it && it.breakout);
+      const out = [...fromLevels, ...(Number.isFinite(legacy) ? [legacy] : [])];
+      return uniqSorted(out);
+    }
+
+    function getTpLevels(it){
+      const fromLevels = (it && it.levels && Array.isArray(it.levels.tp)) ? it.levels.tp : [];
+      const t1 = planNum(it && it.tp1);
+      const t2 = planNum(it && it.tp2);
+      const out = [...fromLevels,
+        ...(Number.isFinite(t1) ? [t1] : []),
+        ...(Number.isFinite(t2) ? [t2] : []),
+      ];
+      return uniqSorted(out);
+    }
+
+    function buildPlanLevels(it){
+      const out = [];
+      const stop = planNum(it && it.stop);
+      if(Number.isFinite(stop) && stop > 0){
+        out.push({ key:"stop", cls:"red", name:"止损", num: stop });
+      }
+
+      const supports = getSupportLevels(it);
+      supports.forEach((n, i) => {
+        const nm = supports.length > 1 ? `支撑${i+1}` : "支撑";
+        out.push({ key:`support#${i}`, cls:"amber", name: nm, num: n });
+      });
+
+      const breakouts = getBreakoutLevels(it);
+      breakouts.forEach((n, i) => {
+        const nm = breakouts.length > 1 ? `突破${i+1}` : "突破";
+        out.push({ key:`breakout#${i}`, cls:"blue", name: nm, num: n });
+      });
+
+      const tps = getTpLevels(it);
+      tps.forEach((n, i) => {
+        out.push({ key:`tp#${i}`, cls:"green", name: `止盈${i+1}`, num: n });
+      });
+
+      return out
+        .filter(l => Number.isFinite(l.num) && l.num > 0)
+        .sort((a,b) => a.num - b.num);
+    }
+
+    function computeStatusFromLevels(it){
+      const cur = planNum(it && it.price);
+      if(!Number.isFinite(cur)) return "监控中";
+
+      const stop = planNum(it && it.stop);
+      if(Number.isFinite(stop) && cur <= stop) return "已止损";
+
+      const tps = getTpLevels(it);
+      let tpHit = 0;
+      for(let i=tps.length-1;i>=0;i--){
+        if(cur >= tps[i]){
+          tpHit = i+1;
+          break;
+        }
+      }
+      if(tpHit > 0) return `已止盈${tpHit}`;
+
+      const bos = getBreakoutLevels(it);
+      let boHit = 0;
+      for(let i=bos.length-1;i>=0;i--){
+        if(cur >= bos[i]){
+          boHit = i+1;
+          break;
+        }
+      }
+      if(boHit > 0){
+        return bos.length > 1 ? `已突破${boHit}` : "已突破";
+      }
+
+      return "监控中";
+    }
+
     function migrateItems(arr){
       if(!Array.isArray(arr)) return [];
       return arr.map((x) => {
         const it = (x && typeof x === "object") ? x : {};
-        // Field breakout: optional. Keep finite number; otherwise null.
-        const support = Number(it.support);
-        const breakoutRaw = String(it.breakout ?? "").replaceAll(",","").trim();
-        const breakoutNum = breakoutRaw ? Number(breakoutRaw) : NaN;
-        const breakout = Number.isFinite(breakoutNum) ? breakoutNum : null;
-        const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? null : Number(it.tp2);
+        let id = it.id;
+        if(id === undefined || id === null || id === "") id = genId();
+        id = String(id);
+
+        const stop = planNum(it.stop);
+
+        const supportLv = getSupportLevels(it);
+        const breakoutLv = getBreakoutLevels(it);
+        const tpLv = getTpLevels(it);
+
+        const support = supportLv.length ? supportLv[supportLv.length - 1] : null;
+        const breakout = breakoutLv.length ? breakoutLv[0] : null;
+        const tp1 = tpLv.length ? tpLv[0] : null;
+        const tp2 = tpLv.length > 1 ? tpLv[1] : null;
+
         return {
           ...it,
-          stop: Number(it.stop),
-          support: support,
-          breakout: breakout,
-          tp1: Number(it.tp1),
-          tp2: (Number.isFinite(tp2) ? tp2 : null),
-          prevClose: Number.isFinite(Number(it.prevClose)) ? Number(it.prevClose) : NaN,
-          open: Number.isFinite(Number(it.open)) ? Number(it.open) : NaN,
-          high: Number.isFinite(Number(it.high)) ? Number(it.high) : NaN,
-          low: Number.isFinite(Number(it.low)) ? Number(it.low) : NaN,
-          avgPrice: Number.isFinite(Number(it.avgPrice)) ? Number(it.avgPrice) : NaN,
-          volRatio: Number.isFinite(Number(it.volRatio)) ? Number(it.volRatio) : NaN,
+          id,
+          levels: {
+            support: supportLv,
+            breakout: breakoutLv,
+            tp: tpLv,
+          },
+          stop: Number.isFinite(stop) ? stop : null,
+          support,
+          breakout,
+          tp1,
+          tp2,
+          prevClose: planNum(it.prevClose),
+          open: planNum(it.open),
+          high: planNum(it.high),
+          low: planNum(it.low),
+          avgPrice: planNum(it.avgPrice),
+          volRatio: planNum(it.volRatio),
         };
       });
     }
@@ -2212,7 +2366,7 @@ function isAutoRefreshLocked(){
       // Clear JSONP global payloads to reduce window memory bloat
       for(const mc of uniq){
         const key = "v_" + mc;
-        try{ window[key] = ""; }catch(_){ /* ignore */ }
+        try{ delete window[key]; }catch(_){ try{ window[key] = undefined; }catch(__){} }
       }
       return out;
     }
@@ -2438,13 +2592,14 @@ const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
         const mo = d.getUTCMonth();
         const da = d.getUTCDate();
 
+        const dayOfWeek = d.getUTCDay();
         const dayStart = Date.UTC(y, mo, da, 0, 0, 0, 0);
         const dayEnd   = Date.UTC(y, mo, da + 1, 0, 0, 0, 0);
 
         const segStart = Math.max(cursor, dayStart);
         const segEnd   = Math.min(endC, dayEnd);
 
-        if(segEnd > segStart){
+        if(segEnd > segStart && dayOfWeek !== 0 && dayOfWeek !== 6){
           const s1Start = Date.UTC(y, mo, da, 9, 30, 0);
           const s1End   = Date.UTC(y, mo, da, 11, 30, 0);
           const s2Start = Date.UTC(y, mo, da, 13, 0, 0);
@@ -2596,7 +2751,7 @@ const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
       }
 
       const stopped = items.filter(it => it && String(it.status||"").trim() === "已止损");
-      const broken  = items.filter(it => it && String(it.status||"").trim() === "已突破");
+      const broken  = items.filter(it => it && String(it.status||"").trim().startsWith("已突破"));
       const aboveAvg = items
         .filter(it => it && Number.isFinite(Number(it.price)) && Number.isFinite(Number(it.avgPrice)) && Number(it.avgPrice) > 0 && Number(it.price) > Number(it.avgPrice))
         .map(it => {
@@ -2737,8 +2892,8 @@ if(dashBodyEl) dashBodyEl.innerHTML = html;
     function statusCls(s){
       const x = String(s || "");
       if(x === "已止损") return "red";
-      if(x === "已突破") return "blue";
-      if(x === "已止盈1" || x === "已止盈2") return "green";
+      if(x.startsWith("已突破")) return "blue";
+      if(x.startsWith("已止盈")) return "green";
       if(x === "更新失败") return "muted";
       // default: 监控中 / others
       return "amber";
@@ -2866,6 +3021,11 @@ const highNum0 = Number(it.high);
 const hasDayRange = Number.isFinite(lowNum0) && Number.isFinite(highNum0) && highNum0 > lowNum0;
 
 // Domain should include intraday low/high and key strategy levels so marks won't be clipped at edges.
+const stopNum = planNum(it.stop);
+const supportLevels = getSupportLevels(it);
+const breakoutLevels = getBreakoutLevels(it);
+const tpLevels = getTpLevels(it);
+
 const cand = [];
 const pushN = (v) => {
   if(v === null || v === undefined) return;
@@ -2875,7 +3035,10 @@ const pushN = (v) => {
 };
 
 pushN(it.low); pushN(it.high);
-pushN(it.stop); pushN(it.support); pushN(it.breakout); pushN(it.tp1); pushN(it.tp2);
+pushN(stopNum);
+supportLevels.forEach(pushN);
+breakoutLevels.forEach(pushN);
+tpLevels.forEach(pushN);
 pushN(it.price); pushN(it.avgPrice); pushN(it.open); pushN(it.prevClose);
 
 let baseMin = cand.length ? Math.min(...cand) : cur;
@@ -2883,8 +3046,8 @@ let baseMax = cand.length ? Math.max(...cand) : cur;
 
 // Ensure a sane range even if inputs are missing/invalid
 if(!(Number.isFinite(baseMin) && Number.isFinite(baseMax)) || baseMax <= baseMin){
-  baseMin = (Number.isFinite(it.stop) ? Number(it.stop) : cur);
-  baseMax = (Number.isFinite(it.tp2) ? Number(it.tp2) : (Number.isFinite(it.tp1) ? Number(it.tp1) : cur));
+  baseMin = (Number.isFinite(stopNum) ? stopNum : cur);
+  baseMax = (tpLevels.length ? tpLevels[tpLevels.length - 1] : cur);
 }
 
 const rangeOk = Number.isFinite(baseMin) && Number.isFinite(baseMax) && baseMax > baseMin;
@@ -2931,19 +3094,17 @@ const bracketHtml = dayRangeOk ? `
   </div>
 ` : "";
 
-const stopNum = Number(it.stop);
-const tp2Num = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
-const tp1Num = Number(it.tp1);
-const supportNum = Number(it.support);
-const breakoutNum = Number(it.breakout);
+const supportNum = supportLevels.length ? supportLevels[supportLevels.length - 1] : NaN;
+const breakoutNum = breakoutLevels.length ? breakoutLevels[0] : NaN;
+const tp1Num = tpLevels.length ? tpLevels[0] : NaN;
+const tp2Num = tpLevels.length > 1 ? tpLevels[1] : NaN;
 const lowNum = Number(it.low);
 const highNum = Number(it.high);
 
 const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
-const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
-const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
-const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
-
+      const targetNum = tpLevels.length ? tpLevels[tpLevels.length - 1] : NaN;
+      const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
+      const targetLabel = tpLevels.length ? `止盈${tpLevels.length}` : "目标";
 const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
 const isEdge = (n) => epsEq(n, baseMin) || epsEq(n, baseMax);
 
@@ -2966,13 +3127,7 @@ const endRightCls   = rightIsTarget ? "profit" : "neutral";
 
 // Strategy levels: show only the two nearest levels around current price as chips.
 // All other non-edge levels are rendered as tiny ticks (no capsules).
-const planLevels = [
-  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
-  { key:"support", cls:"amber", name:"支撑", num: supportNum },
-  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
-  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
-  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
-].filter(l => Number.isFinite(l.num) && l.num > 0);
+const planLevels = buildPlanLevels(it);
 
 planLevels.sort((a,b)=>a.num-b.num);
 
@@ -3201,17 +3356,76 @@ card.innerHTML = `
       });
     }
 
-    function updateMeter(card, it, priceDirClass){
-      const meterWrap = card.querySelector(".meter-wrap");
+        function updateMeter(card, it, priceDirClass){
+      let meterWrap = card.querySelector(".meter-wrap");
+      if(!meterWrap){
+        // Create meter skeleton on-demand (e.g., quotes arrived after initial render).
+        const statsGrid = card.querySelector(".stats-grid");
+        const wrap = document.createElement("div");
+        wrap.className = "meter-wrap";
+        wrap.style.setProperty("--meter-pad", String(METER_PAD_PCT));
+        wrap.innerHTML = `
+          <div class="meter-track">
+            <div class="meter-invalid left"></div>
+            <div class="meter-invalid right"></div>
+            <div class="meter-fill" style="left:0%; width:0%"></div>
+          </div>
+
+          <div class="meter-end left" data-key="min">
+            <div class="end-line"></div>
+            <div class="end-label">--</div>
+            <div class="end-val">--</div>
+          </div>
+
+          <div class="meter-end right" data-key="max">
+            <div class="end-line"></div>
+            <div class="end-label">--</div>
+            <div class="end-val">--</div>
+          </div>
+
+          <div class="meter-cursor" style="left:0%">
+            <div class="tri"></div>
+            <div class="dot"></div>
+          </div>
+        `;
+        const fill0 = wrap.querySelector(".meter-fill");
+        if(fill0) fill0.className = `meter-fill ${priceDirClass}`;
+        const cursor0 = wrap.querySelector(".meter-cursor");
+        if(cursor0) cursor0.className = `meter-cursor ${priceDirClass}`;
+
+        if(statsGrid) statsGrid.insertAdjacentElement("beforebegin", wrap);
+        else{
+          const inner = card.querySelector(".card-inner");
+          if(inner) inner.appendChild(wrap);
+          else card.appendChild(wrap);
+        }
+        meterWrap = card.querySelector(".meter-wrap");
+      }
       if(!meterWrap) return true;
 
       // keep CSS var in sync (render sets it too)
       meterWrap.style.setProperty("--meter-pad", String(METER_PAD_PCT));
 
-      const cur = Number(it.price);
+      const cur = planNum(it && it.price);
+      if(!Number.isFinite(cur)){
+        // Quote unavailable (e.g., suspended/invalid). Keep UI stable without forcing rerender.
+        const fill = meterWrap.querySelector(".meter-fill");
+        if(fill){ fill.style.width = "0%"; }
+        const cursor = meterWrap.querySelector(".meter-cursor");
+        if(cursor){ cursor.style.display = "none"; }
+        meterWrap.querySelectorAll(".meter-mark, .meter-tick").forEach(el => el.remove());
+        const layer = meterWrap.querySelector(".range-bracket-layer");
+        if(layer) layer.remove();
+        return true;
+      }
 
-      const lowNum0 = Number(it.low);
-      const highNum0 = Number(it.high);
+      const stopNum = planNum(it && it.stop);
+      const supportLevels = getSupportLevels(it);
+      const breakoutLevels = getBreakoutLevels(it);
+      const tpLevels = getTpLevels(it);
+
+      const lowNum0 = Number(it && it.low);
+      const highNum0 = Number(it && it.high);
       const hasDayRange = Number.isFinite(lowNum0) && Number.isFinite(highNum0) && highNum0 > lowNum0;
 
       // Domain should include intraday low/high and key strategy levels so marks won't be clipped at edges.
@@ -3224,20 +3438,35 @@ card.innerHTML = `
       };
 
       pushN(it.low); pushN(it.high);
-      pushN(it.stop); pushN(it.support); pushN(it.breakout); pushN(it.tp1); pushN(it.tp2);
-      pushN(it.price); pushN(it.avgPrice); pushN(it.open); pushN(it.prevClose);
+      pushN(stopNum);
+      supportLevels.forEach(pushN);
+      breakoutLevels.forEach(pushN);
+      tpLevels.forEach(pushN);
+      pushN(cur); pushN(it.avgPrice); pushN(it.open); pushN(it.prevClose);
 
       let baseMin = cand.length ? Math.min(...cand) : cur;
       let baseMax = cand.length ? Math.max(...cand) : cur;
 
       // Ensure a sane range even if inputs are missing/invalid
       if(!(Number.isFinite(baseMin) && Number.isFinite(baseMax)) || baseMax <= baseMin){
-        baseMin = (Number.isFinite(it.stop) ? Number(it.stop) : cur);
-        baseMax = (Number.isFinite(it.tp2) ? Number(it.tp2) : (Number.isFinite(it.tp1) ? Number(it.tp1) : cur));
+        baseMin = (Number.isFinite(stopNum) ? stopNum : cur);
+        baseMax = (tpLevels.length ? tpLevels[tpLevels.length - 1] : cur);
+        if(!(Number.isFinite(baseMin) && Number.isFinite(baseMax)) || baseMax <= baseMin){
+          baseMin = cur;
+          baseMax = cur + 1;
+        }
       }
 
       const rangeOk = Number.isFinite(baseMin) && Number.isFinite(baseMax) && baseMax > baseMin;
-      if(!rangeOk) return false;
+      if(!rangeOk){
+        // Cannot compute a valid range yet; avoid forcing a full rerender.
+        const cursor = meterWrap.querySelector(".meter-cursor");
+        if(cursor){ cursor.style.display = "none"; }
+        meterWrap.querySelectorAll(".meter-mark, .meter-tick").forEach(el => el.remove());
+        const layer = meterWrap.querySelector(".range-bracket-layer");
+        if(layer) layer.remove();
+        return true;
+      }
 
       const padPct = METER_PAD_PCT;
       const usablePct = Math.max(1, 100 - padPct * 2);
@@ -3271,49 +3500,87 @@ card.innerHTML = `
         fill.style.left = `${baseLeft}%`;
         fill.style.width = `${fillW}%`;
       }
+
       const cursor = meterWrap.querySelector(".meter-cursor");
       if(cursor){
         cursor.className = `meter-cursor ${priceDirClass}`;
+        cursor.style.display = "block";
         cursor.style.left = `${curX}%`;
       }
-
-      // End labels: choose extremes from (intraday low/high) AND (stop/targets) so key levels remain visible
-      const stopNum = Number(it.stop);
-      const tp2Num = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
-      const tp1Num = Number(it.tp1);
-      const lowNum = Number(it.low);
-      const highNum = Number(it.high);
-
-      const stopVal = Number.isFinite(stopNum) ? formatCNYNoSymbol(stopNum) : "--";
-      const targetNum = Number.isFinite(tp2Num) ? tp2Num : (Number.isFinite(tp1Num) ? tp1Num : NaN);
-      const targetVal = Number.isFinite(targetNum) ? formatCNYNoSymbol(targetNum) : "--";
-      const targetLabel = Number.isFinite(tp2Num) ? "止盈2" : (Number.isFinite(tp1Num) ? "止盈1" : "目标");
 
       const epsEq = (a,b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a-b) <= Math.max(1e-6, Math.abs(b)*1e-8);
       const isEdge = (n) => epsEq(n, baseMin) || epsEq(n, baseMax);
 
-      const supportNum = Number(it.support);
-      const breakoutNum = Number(it.breakout);
+      // ----- End labels -----
+      const lowNum = Number(it && it.low);
+      const highNum = Number(it && it.high);
 
-      const leftIsStop = Number.isFinite(stopNum) && epsEq(stopNum, baseMin);
+      const planLevelsAll = buildPlanLevels(it);
+      const matchLv = (n) => {
+        for(const lv of planLevelsAll){
+          if(epsEq(lv.num, n)) return lv;
+        }
+        return null;
+      };
+
+      const leftMatched = matchLv(baseMin);
+      const rightMatched = matchLv(baseMax);
+
+      const leftIsStop = leftMatched && leftMatched.key === "stop";
       const leftIsLow  = hasDayRange && Number.isFinite(lowNum) && epsEq(lowNum, baseMin);
-      const leftIsSupport = Number.isFinite(supportNum) && epsEq(supportNum, baseMin);
 
-      const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftIsSupport ? "支撑" : "下界"));
-      const endLeftVal   = leftIsStop ? stopVal : (leftIsLow ? formatCNYNoSymbol(lowNum) : (leftIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMin)));
+      const endLeftLabel = leftIsStop ? "止损" : (leftIsLow ? "最低" : (leftMatched ? leftMatched.name : "下界"));
+      const endLeftVal   = (leftIsStop && Number.isFinite(stopNum)) ? formatCNYNoSymbol(stopNum)
+                        : (leftIsLow ? formatCNYNoSymbol(lowNum)
+                        : formatCNYNoSymbol(baseMin));
       const endLeftCls   = leftIsStop ? "risk" : "neutral";
 
-      const rightIsTarget = Number.isFinite(targetNum) && epsEq(targetNum, baseMax);
-      const rightIsHigh   = hasDayRange && Number.isFinite(highNum) && epsEq(highNum, baseMax);
-      const rightIsBreakout = Number.isFinite(breakoutNum) && epsEq(breakoutNum, baseMax);
-      const rightIsSupport  = Number.isFinite(supportNum) && epsEq(supportNum, baseMax);
+      const rightIsHigh = hasDayRange && Number.isFinite(highNum) && epsEq(highNum, baseMax);
+      const rightIsTp = rightMatched && String(rightMatched.key || "").startsWith("tp#");
 
-      const endRightLabel = rightIsTarget ? targetLabel : (rightIsHigh ? "最高" : (rightIsBreakout ? "突破" : (rightIsSupport ? "支撑" : "上界")));
-      const endRightVal   = rightIsTarget ? targetVal : (rightIsHigh ? formatCNYNoSymbol(highNum) : (rightIsBreakout ? formatCNYNoSymbol(breakoutNum) : (rightIsSupport ? formatCNYNoSymbol(supportNum) : formatCNYNoSymbol(baseMax))));
-      const endRightCls   = rightIsTarget ? "profit" : "neutral";
+      const endRightLabel = rightIsHigh ? "最高" : (rightMatched ? rightMatched.name : "上界");
+      const endRightVal   = rightIsHigh ? formatCNYNoSymbol(highNum) : formatCNYNoSymbol(baseMax);
+      const endRightCls   = rightIsTp ? "profit" : "neutral";
 
-      const minEnd = meterWrap.querySelector('.meter-end[data-key="min"]');
-      if(minEnd){
+      let minEnd = meterWrap.querySelector('.meter-end[data-key="min"]');
+      let maxEnd = meterWrap.querySelector('.meter-end[data-key="max"]');
+      if(!minEnd || !maxEnd){
+        // Rebuild skeleton (rare) and continue without triggering full rerender loops.
+        meterWrap.innerHTML = `
+          <div class="meter-track">
+            <div class="meter-invalid left"></div>
+            <div class="meter-invalid right"></div>
+            <div class="meter-fill" style="left:0%; width:0%"></div>
+          </div>
+
+          <div class="meter-end left" data-key="min">
+            <div class="end-line"></div>
+            <div class="end-label">--</div>
+            <div class="end-val">--</div>
+          </div>
+
+          <div class="meter-end right" data-key="max">
+            <div class="end-line"></div>
+            <div class="end-label">--</div>
+            <div class="end-val">--</div>
+          </div>
+
+          <div class="meter-cursor" style="left:0%">
+            <div class="tri"></div>
+            <div class="dot"></div>
+          </div>
+        `;
+        const fill0 = meterWrap.querySelector(".meter-fill");
+        if(fill0) fill0.className = `meter-fill ${priceDirClass}`;
+        const cursor0 = meterWrap.querySelector(".meter-cursor");
+        if(cursor0) cursor0.className = `meter-cursor ${priceDirClass}`;
+
+        minEnd = meterWrap.querySelector('.meter-end[data-key="min"]');
+        maxEnd = meterWrap.querySelector('.meter-end[data-key="max"]');
+        if(!minEnd || !maxEnd) return true;
+      }
+
+      {
         const lab = minEnd.querySelector(".end-label");
         const v = minEnd.querySelector(".end-val");
         if(lab) lab.textContent = endLeftLabel;
@@ -3321,12 +3588,8 @@ card.innerHTML = `
           v.className = `end-val ${endLeftCls}`;
           v.textContent = endLeftVal;
         }
-      }else{
-        return false;
       }
-
-      const maxEnd = meterWrap.querySelector('.meter-end[data-key="max"]');
-      if(maxEnd){
+      {
         const lab = maxEnd.querySelector(".end-label");
         const v = maxEnd.querySelector(".end-val");
         if(lab) lab.textContent = endRightLabel;
@@ -3334,11 +3597,9 @@ card.innerHTML = `
           v.className = `end-val ${endRightCls}`;
           v.textContent = endRightVal;
         }
-      }else{
-        return false;
       }
 
-      // Intraday low-high floating band + avg tick (yellow)
+      // ----- Intraday low-high floating band + avg tick (yellow) -----
       const dayRangeOk = hasDayRange;
       const dayL = dayRangeOk ? posX(it.low) : 0;
       const dayH = dayRangeOk ? posX(it.high) : 0;
@@ -3346,7 +3607,7 @@ card.innerHTML = `
       const dayRight = Math.max(dayL, dayH);
       const dayWidth = dayRangeOk ? Math.max(1, dayRight - dayLeft) : 0;
 
-      const avgNum = Number(it.avgPrice);
+      const avgNum = Number(it && it.avgPrice);
       let avgX = (dayRangeOk && Number.isFinite(avgNum)) ? posX(avgNum) : NaN;
       if(dayRangeOk && Number.isFinite(avgX)){
         avgX = Math.max(dayLeft, Math.min(dayRight, avgX));
@@ -3385,143 +3646,77 @@ card.innerHTML = `
         layer.remove();
       }
 
-      // Strategy levels: show only the two nearest levels around current price as chips.
-// All other non-edge levels are rendered as tiny ticks (no capsules).
-const planLevels = [
-  { key:"stop",    cls:"red",   name:"止损",  num: stopNum },
-  { key:"support", cls:"amber", name:"支撑", num: supportNum },
-  { key:"breakout",cls:"blue",  name:"突破", num: breakoutNum },
-  { key:"tp1",     cls:"green", name:"止盈1", num: tp1Num },
-  { key:"tp2",     cls:"green", name:"止盈2", num: tp2Num },
-].filter(l => Number.isFinite(l.num) && l.num > 0);
+      // ----- Strategy levels: show only two nearest around current price as chips; others as tiny ticks -----
+      // Remove existing marks/ticks (we rebuild them each update to avoid stale keys)
+      meterWrap.querySelectorAll(".meter-mark, .meter-tick").forEach(el => el.remove());
 
-planLevels.sort((a,b)=>a.num-b.num);
+      const planLevels = planLevelsAll
+        .filter(lv => Number.isFinite(lv.num) && lv.num > 0)
+        .sort((a,b)=>a.num-b.num);
 
-const le = (a,b)=> a < b || epsEq(a,b);
-const ge = (a,b)=> a > b || epsEq(a,b);
+      const le = (a,b)=> a < b || epsEq(a,b);
+      const ge = (a,b)=> a > b || epsEq(a,b);
 
-let leftLv = null;
-let rightLv = null;
+      let leftLv = null;
+      let rightLv = null;
 
-for(const lv of planLevels){
-  if(le(lv.num, cur)) leftLv = lv;
-  if(!rightLv && ge(lv.num, cur)) rightLv = lv;
-}
+      for(const lv of planLevels){
+        if(le(lv.num, cur)) leftLv = lv;
+        if(!rightLv && ge(lv.num, cur)) rightLv = lv;
+      }
 
-if(leftLv && rightLv && leftLv.key === rightLv.key){
-  const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
-  if(idx >= 0){
-    if(planLevels[idx+1]) rightLv = planLevels[idx+1];
-    else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
-  }
-}
+      // If current price lands exactly on a level, show the next distinct one on the other side.
+      if(leftLv && rightLv && leftLv.key === rightLv.key && epsEq(leftLv.num, rightLv.num)){
+        const idx = planLevels.findIndex(x => x.key === leftLv.key && epsEq(x.num, leftLv.num));
+        if(idx >= 0){
+          if(planLevels[idx+1]) rightLv = planLevels[idx+1];
+          else if(planLevels[idx-1]) leftLv = planLevels[idx-1];
+        }
+      }
 
-const selectedKeys = new Set();
-if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
-if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
+      const selectedKeys = new Set();
+      if(leftLv && !isEdge(leftLv.num)) selectedKeys.add(leftLv.key);
+      if(rightLv && !isEdge(rightLv.num)) selectedKeys.add(rightLv.key);
 
-const upsertChip = (key, cls, name, rawNum, wantChip) => {
-  const el = meterWrap.querySelector(`.meter-mark[data-key="${key}"]`);
-  const show = wantChip && Number.isFinite(rawNum) && !isEdge(rawNum);
-
-  if(!show){
-    if(el) el.remove();
-    return true;
-  }
-
-  const p = posX(rawNum);
-  const value = formatCNYNoSymbol(rawNum);
-
-  if(!el){
-    const div = document.createElement("div");
-    div.className = `meter-mark ${cls}`;
-    div.dataset.key = key;
-    div.dataset.side = "C";
-    div.style.left = `${p}%`;
-    div.innerHTML = `
-            <div class="mark-chip" title="${escapeHtml(name)} ${escapeHtml(value)}">
-        <div class="chip-l">${escapeHtml(name)}</div>
-        <div class="chip-v">${escapeHtml(value)}</div>
-      </div>
-    `;
-    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
-    if(anchor) meterWrap.insertBefore(div, anchor);
-    else meterWrap.appendChild(div);
-    return true;
-  }
-  // Remove legacy connector line (mark-line) if present
-  const legacyLine = el.querySelector(".mark-line");
-  if(legacyLine) legacyLine.remove();
-
-
-  el.className = `meter-mark ${cls}`;
-  el.style.left = `${p}%`;
-  const l = el.querySelector(".chip-l");
-  const v = el.querySelector(".chip-v");
-  if(l) l.textContent = name;
-  if(v) v.textContent = value;
-  return true;
-};
-
-const upsertTick = (key, cls, rawNum, wantTick) => {
-  const el = meterWrap.querySelector(`.meter-tick[data-key="${key}"]`);
-  const show = wantTick && Number.isFinite(rawNum) && !isEdge(rawNum);
-
-  if(!show){
-    if(el) el.remove();
-    return true;
-  }
-
-  const p = posX(rawNum);
-  const compact = (p < 1 || p > 99);
-  if(compact){
-    if(el) el.remove();
-    return true;
-  }
-
-  if(!el){
-    const div = document.createElement("div");
-    div.className = `meter-tick ${cls}`;
-    div.dataset.key = key;
-    div.style.left = `${p}%`;
-    const anchor = meterWrap.querySelector('.meter-end[data-key="min"]') || meterWrap.querySelector('.meter-end') || null;
-    if(anchor) meterWrap.insertBefore(div, anchor);
-    else meterWrap.appendChild(div);
-    return true;
-  }
-
-  el.className = `meter-tick ${cls}`;
-  el.style.left = `${p}%`;
-  el.classList.toggle("compact", compact);
-  return true;
-};
-
-// Chips: only the two adjacent levels around current price
-if(!upsertChip("stop", "red", "止损", stopNum, selectedKeys.has("stop"))) return false;
-if(!upsertChip("support", "amber", "支撑", supportNum, selectedKeys.has("support"))) return false;
-if(!upsertChip("breakout", "blue", "突破", breakoutNum, selectedKeys.has("breakout"))) return false;
-if(!upsertChip("tp1", "green", "止盈1", tp1Num, selectedKeys.has("tp1"))) return false;
-if(!upsertChip("tp2", "green", "止盈2", tp2Num, selectedKeys.has("tp2"))) return false;
-
-// Ticks: all other non-adjacent levels
-if(!upsertTick("stop", "red", stopNum, !selectedKeys.has("stop"))) return false;
-if(!upsertTick("support", "amber", supportNum, !selectedKeys.has("support"))) return false;
-if(!upsertTick("breakout", "blue", breakoutNum, !selectedKeys.has("breakout"))) return false;
-if(!upsertTick("tp1", "green", tp1Num, !selectedKeys.has("tp1"))) return false;
-if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
-
-  // Recompute mark side-split after updates (avoid overlap on incremental refresh)
-      const markEls = Array.from(meterWrap.querySelectorAll(".meter-mark")).map(el => {
-        const pos = Number(String(el.style.left || "").replace("%",""));
-        return { el, pos: Number.isFinite(pos) ? pos : 0, side: "C", compact: false };
-      }).sort((a,b)=>a.pos-b.pos);
-
-      applyMeterMarkCrowding(markEls);
-
-      markEls.forEach(m => {
-        m.el.dataset.side = m.side || "C";
-        m.el.classList.toggle("compact", !!m.compact);
+      const meterMarks = [];
+      planLevels.forEach(lv => {
+        if(selectedKeys.has(lv.key) && !isEdge(lv.num)){
+          meterMarks.push({
+            key: lv.key,
+            cls: lv.cls,
+            name: lv.name,
+            value: formatCNYNoSymbol(lv.num),
+            pos: posX(lv.num)
+          });
+        }
       });
+
+      // Collision handling and edge guard
+      applyMeterMarkCrowding(meterMarks);
+
+      const meterTickHtml = planLevels
+        .filter(lv => !selectedKeys.has(lv.key) && !isEdge(lv.num))
+        .map(lv => {
+          const p = posX(lv.num);
+          const compact = (p < 1 || p > 99);
+          if(compact) return ""; // hide extreme-edge ticks
+          return `<div class="meter-tick ${lv.cls} ${compact ? 'compact' : ''}" data-key="${escapeHtml(lv.key || '')}" style="left:${p}%"></div>`;
+        })
+        .join("");
+
+      const meterMarkHtml = meterMarks
+        .sort((a,b)=>a.pos-b.pos)
+        .map(m => `
+          <div class="meter-mark ${m.cls} ${m.compact ? 'compact' : ''}" data-key="${escapeHtml(m.key || '')}" data-side="${escapeHtml(m.side || 'C')}" style="left:${m.pos}%">
+                <div class="mark-chip" title="${escapeHtml(m.name)} ${escapeHtml(m.value)}">
+              <div class="chip-l">${escapeHtml(m.name)}</div>
+              <div class="chip-v">${escapeHtml(m.value)}</div>
+            </div>
+          </div>
+        `).join("");
+
+      // Insert before the min end label so order matches render()
+      minEnd.insertAdjacentHTML("beforebegin", `${meterTickHtml}${meterMarkHtml}`);
 
       return true;
     }
@@ -3574,16 +3769,15 @@ if(!upsertTick("tp2", "green", tp2Num, !selectedKeys.has("tp2"))) return false;
     function updateValuesOnly(){
       // Update dashboard summary (does not touch list DOM)
       renderDashboard();
-let missing = false;
-      for(const it of items){
-        if(!updateCardValues(it)) missing = true;
-      }
 
-      // Safety fallback: if DOM is out of sync (rare), rebuild once.
-      if(missing){
-        render();
+      // Only update values in-place; never full re-render on data refresh.
+      // Full render should be triggered only by user actions (add/edit/delete/sort).
+      for(const it of items){
+        try{ updateCardValues(it); }catch(_){ /* ignore */ }
       }
     }
+
+
 
 
     // ---------- Note expand/collapse ----------
@@ -3817,15 +4011,18 @@ let missing = false;
       if(!alertOverlay) return;
 
       const baseTitle = `${payload.name ? payload.name + " " : ""}${payload.symbol}`;
+      const label = String(payload.label || "").trim();
+      const which = (payload.type === "stop" || payload.type === "stop_recover") ? "止损位" :
+        (label || "阈值位");
+
       const statusText =
         payload.type === "stop" ? "已止损" :
         payload.type === "stop_recover" ? "收回止损" :
-        payload.type === "tp2"  ? "已止盈2" :
-        payload.type === "tp2_back" ? "回落跌破止盈2" :
-        payload.type === "tp1"  ? "已止盈1" :
-        payload.type === "tp1_back" ? "回落跌破止盈1" :
-        payload.type === "breakdown" ? "跌破突破位" :
-        "已突破";
+        payload.type === "tp" ? (label || "已止盈") :
+        payload.type === "tp_back" ? (label ? `回落跌破${label}` : "回落跌破止盈") :
+        payload.type === "breakout" ? (label || "已突破") :
+        payload.type === "breakdown" ? (label ? `跌破${label}` : "跌破突破位") :
+        (label || "触发提醒");
 
       if(alertTitle){
         alertTitle.textContent = baseTitle;
@@ -3838,11 +4035,6 @@ let missing = false;
 
       const priceStr = formatCNY(payload.price);
       const levelStr = formatCNY(payload.level);
-      const which =
-        (payload.type === "stop" || payload.type === "stop_recover") ? "止损位" :
-        (payload.type === "tp2" || payload.type === "tp2_back")  ? "止盈2" :
-        (payload.type === "tp1" || payload.type === "tp1_back")  ? "止盈1" :
-        "突破位";
 
       if(alertBody){
         alertBody.innerHTML = (() => {
@@ -3851,10 +4043,8 @@ let missing = false;
             payload.type === "stop_recover" ? "回升至" :
             payload.type === "breakout" ? "突破" :
             payload.type === "breakdown" ? "跌破" :
-            payload.type === "tp2" ? "达到" :
-            payload.type === "tp2_back" ? "回落跌破" :
-            payload.type === "tp1" ? "达到" :
-            payload.type === "tp1_back" ? "回落跌破" :
+            payload.type === "tp" ? "达到" :
+            payload.type === "tp_back" ? "回落跌破" :
             "达到";
           return `现价 <b>${priceStr}</b> ${act} ${which} <b>${levelStr}</b>`;
         })();
@@ -3879,11 +4069,11 @@ let missing = false;
     }
     function ackAlert(payload){
       if(!payload || !payload.id) return;
-      const key = payload.type;
       const pk = priceKey(payload.level);
       if(!pk) return;
       if(!alertAck[payload.id]) alertAck[payload.id] = {};
-      alertAck[payload.id][key] = pk;
+      const k = `${payload.type}:${pk}`;
+      alertAck[payload.id][k] = String(Date.now());
       saveAlertAck();
     }
     if(btnAlertOk){
@@ -3906,10 +4096,10 @@ let missing = false;
       if(!it || !it.id) return;
       if(isCallAuctionNow()) return;
 
-      const cur = Number(it.price);
+      const cur = planNum(it.price);
       if(!Number.isFinite(cur)) return;
 
-      const prev = Number(prevPrice);
+      const prev = planNum(prevPrice);
       const hasPrev = Number.isFinite(prev);
 
       const name = String(it.name || "").trim();
@@ -3930,78 +4120,79 @@ let missing = false;
         return true;
       };
 
-      // Priority: stop-loss first (only when crossing the threshold)
-      const stop = Number(it.stop);
-      if(Number.isFinite(stop) && cur <= stop && (!hasPrev || prev > stop)){
-        const ack = (alertAck[it.id] && alertAck[it.id].stop) ? String(alertAck[it.id].stop) : "";
-        if(ack !== priceKey(stop) && canEnqueue("stop", stop)){
-          enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop });
-        }
-        return;
-      }
-      // Bidirectional alerts (reverse crossings)
-      if(alertsBidirectional){
-        const bo0 = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
-        if(Number.isFinite(bo0) && hasPrev && prev >= bo0 && cur < bo0){
-          if(canEnqueue("breakdown", bo0)){
-            enqueueAlert({ id: it.id, type: "breakdown", symbol, name, price: cur, level: bo0 });
-          }
-          return;
-        }
-
-        const tp2d = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
-        if(Number.isFinite(tp2d) && hasPrev && prev >= tp2d && cur < tp2d){
-          if(canEnqueue("tp2_back", tp2d)){
-            enqueueAlert({ id: it.id, type: "tp2_back", symbol, name, price: cur, level: tp2d });
-          }
-          return;
-        }
-
-        const tp1d = Number(it.tp1);
-        if(Number.isFinite(tp1d) && hasPrev && prev >= tp1d && cur < tp1d){
-          if(canEnqueue("tp1_back", tp1d)){
-            enqueueAlert({ id: it.id, type: "tp1_back", symbol, name, price: cur, level: tp1d });
-          }
-          return;
-        }
-      }
-
-
-      // Then take-profit (higher target first), only when crossing the threshold
-      const tp2 = (it.tp2 === null || it.tp2 === undefined || it.tp2 === "") ? NaN : Number(it.tp2);
-      if(Number.isFinite(tp2) && cur >= tp2 && (!hasPrev || prev < tp2)){
-        const ack = (alertAck[it.id] && alertAck[it.id].tp2) ? String(alertAck[it.id].tp2) : "";
-        if(ack !== priceKey(tp2) && canEnqueue("tp2", tp2)){
-          enqueueAlert({ id: it.id, type: "tp2", symbol, name, price: cur, level: tp2 });
+      // Priority: stop-loss first (repeatable by cooldown while condition holds)
+      const stop = planNum(it.stop);
+      if(Number.isFinite(stop) && cur <= stop){
+        if(canEnqueue("stop", stop)){
+          enqueueAlert({ id: it.id, type: "stop", symbol, name, price: cur, level: stop, label: "止损" });
         }
         return;
       }
 
-      const tp1 = Number(it.tp1);
-      if(Number.isFinite(tp1) && cur >= tp1 && (!hasPrev || prev < tp1)){
-        const ack = (alertAck[it.id] && alertAck[it.id].tp1) ? String(alertAck[it.id].tp1) : "";
-        if(ack !== priceKey(tp1) && canEnqueue("tp1", tp1)){
-          enqueueAlert({ id: it.id, type: "tp1", symbol, name, price: cur, level: tp1 });
+      // Stop recover (crossing only)
+      if(alertsBidirectional && Number.isFinite(stop) && hasPrev && prev <= stop && cur > stop){
+        if(canEnqueue("stop_recover", stop)){
+          enqueueAlert({ id: it.id, type: "stop_recover", symbol, name, price: cur, level: stop, label: "止损回收" });
         }
         return;
       }
 
-      const bo = (it.breakout === null || it.breakout === undefined || it.breakout === "") ? NaN : Number(it.breakout);
-      if(Number.isFinite(bo) && cur >= bo && (!hasPrev || prev < bo)){
-        const ack = (alertAck[it.id] && alertAck[it.id].breakout) ? String(alertAck[it.id].breakout) : "";
-        if(ack !== priceKey(bo) && canEnqueue("breakout", bo)){
-          enqueueAlert({ id: it.id, type: "breakout", symbol, name, price: cur, level: bo });
+      // Take-profit (multi-level, highest first; repeatable by cooldown while condition holds)
+      const tps = getTpLevels(it);
+      if(tps.length){
+        for(let i=tps.length-1;i>=0;i--){
+          const level = tps[i];
+          const label = `止盈${i+1}`;
+          if(cur >= level){
+            if(canEnqueue("tp", level)){
+              enqueueAlert({ id: it.id, type: "tp", symbol, name, price: cur, level, label });
+            }
+            return;
+          }
         }
-      }
-      if(alertsBidirectional){
-        const stopUp = Number(it.stop);
-        if(Number.isFinite(stopUp) && hasPrev && prev <= stopUp && cur > stopUp){
-          if(canEnqueue("stop_recover", stopUp)){
-            enqueueAlert({ id: it.id, type: "stop_recover", symbol, name, price: cur, level: stopUp });
+
+        // reverse crossing (tp_back): highest crossed first
+        if(alertsBidirectional && hasPrev){
+          for(let i=tps.length-1;i>=0;i--){
+            const level = tps[i];
+            if(prev >= level && cur < level){
+              const label = `止盈${i+1}`;
+              if(canEnqueue("tp_back", level)){
+                enqueueAlert({ id: it.id, type: "tp_back", symbol, name, price: cur, level, label });
+              }
+              return;
+            }
           }
         }
       }
 
+      // Breakout (multi-level, highest first; repeatable by cooldown while condition holds)
+      const bos = getBreakoutLevels(it);
+      if(bos.length){
+        for(let i=bos.length-1;i>=0;i--){
+          const level = bos[i];
+          const label = bos.length > 1 ? `突破${i+1}` : "突破";
+          if(cur >= level){
+            if(canEnqueue("breakout", level)){
+              enqueueAlert({ id: it.id, type: "breakout", symbol, name, price: cur, level, label });
+            }
+            return;
+          }
+        }
+
+        if(alertsBidirectional && hasPrev){
+          for(let i=bos.length-1;i>=0;i--){
+            const level = bos[i];
+            if(prev >= level && cur < level){
+              const label = bos.length > 1 ? `突破${i+1}` : "突破";
+              if(canEnqueue("breakdown", level)){
+                enqueueAlert({ id: it.id, type: "breakdown", symbol, name, price: cur, level, label });
+              }
+              return;
+            }
+          }
+        }
+      }
     }
 
     function downloadJSON(filename, obj){
@@ -4031,30 +4222,61 @@ let missing = false;
 
     function normalizeImportedItems(arr){
       if(!Array.isArray(arr)) throw new Error("INVALID_FORMAT");
-      return arr.map((o) => {
+      const out = arr.map((o) => {
         const symbol = String((o && o.symbol) || "").trim();
         if(!symbol) throw new Error("MISSING_SYMBOL");
+
+        const rawLevels = (o && o.levels && typeof o.levels === "object") ? o.levels : {};
+        const lvSupport = uniqSorted(Array.isArray(rawLevels.support) ? rawLevels.support : []);
+        const lvBreakout = uniqSorted(Array.isArray(rawLevels.breakout) ? rawLevels.breakout : []);
+        const lvTp = uniqSorted(Array.isArray(rawLevels.tp) ? rawLevels.tp : []);
+
+        // Merge legacy scalar fields into levels (best-effort).
+        const s0 = planNum(o && o.support);
+        const b0 = planNum(o && o.breakout);
+        const t10 = planNum(o && o.tp1);
+        const t20 = planNum(o && o.tp2);
+
+        const levels = {
+          support: uniqSorted([...lvSupport, ...(Number.isFinite(s0) ? [s0] : [])]),
+          breakout: uniqSorted([...lvBreakout, ...(Number.isFinite(b0) ? [b0] : [])]),
+          tp: uniqSorted([...lvTp, ...(Number.isFinite(t10) ? [t10] : []), ...(Number.isFinite(t20) ? [t20] : [])]),
+        };
+
+        const support = levels.support.length ? levels.support[levels.support.length - 1] : null;
+        const breakout = levels.breakout.length ? levels.breakout[0] : null;
+        const tp1 = levels.tp.length ? levels.tp[0] : null;
+        const tp2 = levels.tp.length > 1 ? levels.tp[1] : null;
+
+        const stop = planNum(o && o.stop);
+
         return {
           id: String((o && o.id) || genId()),
           symbol,
           name: (o && o.name) ? String(o.name) : "",
-          stop: safeNum(o && o.stop),
-          support: safeNum(o && o.support),
-          breakout: (o && (o.breakout !== undefined) && (o.breakout !== "") && (o.breakout !== null)) ? safeNum(o.breakout) : null,
-          tp1: safeNum(o && o.tp1),
-          tp2: (o && (o.tp2 !== undefined) && (o.tp2 !== "") && (o.tp2 !== null)) ? safeNum(o.tp2) : null,
+          note: (o && o.note) ? String(o.note) : "",
+          levels,
+          stop: Number.isFinite(stop) ? stop : null,
+          support,
+          breakout,
+          tp1,
+          tp2,
           // runtime fields (best-effort defaults)
-          price: safeNum(o && o.price) ?? 0,
-          prevClose: safeNum(o && o.prevClose) ?? 0,
-          open: safeNum(o && o.open) ?? 0,
-          high: safeNum(o && o.high) ?? 0,
-          low: safeNum(o && o.low) ?? 0,
-          avgPrice: safeNum(o && o.avgPrice) ?? 0,
-          volRatio: safeNum(o && o.volRatio) ?? 0,
-          status: (o && o.status) ? String(o.status).trim() : "监控中",
-          updatedAt: (o && o.updatedAt) ? String(o.updatedAt) : ""
+          price: planNum(o && o.price),
+          prevClose: planNum(o && o.prevClose),
+          open: planNum(o && o.open),
+          high: planNum(o && o.high),
+          low: planNum(o && o.low),
+          avgPrice: planNum(o && o.avgPrice),
+          volRatio: planNum(o && o.volRatio),
+          status: (o && o.status) ? String(o.status) : "监控中",
+          updatedAt: (o && o.updatedAt) ? String(o.updatedAt) : "",
+          breakoutStart: (o && o.breakoutStart) ? String(o.breakoutStart) : "",
+          marketCode: (o && o.marketCode) ? String(o.marketCode) : "",
         };
       });
+
+      return migrateItems(out);
     }
 
     if(btnExport){
@@ -4139,11 +4361,17 @@ let missing = false;
         modalTitle.textContent = "编辑股票";
         fSymbol.value = it.symbol;
         if(fNote) fNote.value = String(it.note ?? "");
-        fStop.value = String(it.stop ?? "");
-        fSupport.value = String(it.support ?? "");
-        fBreakout.value = (Number.isFinite(it.breakout) ? String(it.breakout) : "");
-        fTp1.value = String(it.tp1 ?? "");
-        fTp2.value = (Number.isFinite(it.tp2) ? String(it.tp2) : "");
+        fStop.value = (it.stop === null || it.stop === undefined) ? "" : String(it.stop);
+
+        const supports = getSupportLevels(it);
+        const breakouts = getBreakoutLevels(it);
+        const tps = getTpLevels(it);
+
+        fSupport.value = supports.length ? supports.join(", ") : "";
+        fBreakout.value = breakouts.length ? breakouts.join(", ") : "";
+        fTp1.value = tps.length ? tps.join(", ") : "";
+        // Legacy field kept only for compatibility (hidden in UI)
+        fTp2.value = "";
       }
 
       overlay.classList.add("show");
@@ -4170,68 +4398,92 @@ let missing = false;
     function parseOptionalNum(v){
       const s = String(v ?? "").trim();
       if(!s) return null;
-      const n = Number(s.replaceAll(",",""));
+      const n = Number(s.replaceAll(",","").replaceAll("，",""));
       return Number.isFinite(n) ? n : NaN;
     }
 
     btnSave.addEventListener("click", async () => {
       const symbol = fSymbol.value.trim();
       const note = (fNote ? fNote.value.trim() : "");
-      const stop = parseNum(fStop.value);
-      const support = parseNum(fSupport.value);
-      const breakout = parseOptionalNum(fBreakout.value);
-      const tp1 = parseNum(fTp1.value);
-      const tp2 = parseOptionalNum(fTp2.value);
+
+      const stopOpt = parseOptionalNum(fStop.value);
+
+      const supR = parseNumList(fSupport.value);
+      const boR  = parseNumList(fBreakout.value);
+
+      // TP list: main input supports list; legacy tp2 input (hidden) is merged if provided
+      const tpMain = parseNumList(fTp1.value);
+      const tp2Legacy = parseOptionalNum(fTp2.value);
+
+      const supports = supR.nums;
+      const breakouts = boR.nums;
+      const tps = uniqSorted([
+        ...tpMain.nums,
+        ...(Number.isFinite(tp2Legacy) ? [tp2Legacy] : []),
+      ]);
 
       if(!/^\d{6}$/.test(symbol)){
         toast("请输入 6 位股票代码");
         fSymbol.focus();
         return;
       }
-      if(!Number.isFinite(stop) || !Number.isFinite(support) || !Number.isFinite(tp1)){
-        toast("止损/支撑/止盈1 请输入有效数字");
+
+      if(stopOpt !== null && !Number.isFinite(stopOpt)){
+        toast("止损 请输入有效数字或留空");
+        fStop.focus();
         return;
       }
-      if(breakout !== null && !Number.isFinite(breakout)){
-        toast("突破 请输入有效数字或留空");
+
+      if(supR.bad.length){
+        toast(`支撑 列表包含无效项: ${supR.bad.slice(0,3).join(", ")}${supR.bad.length>3?"...":""}`);
+        fSupport.focus();
         return;
       }
-      if(tp2 !== null && !Number.isFinite(tp2)){
+      if(boR.bad.length){
+        toast(`突破 列表包含无效项: ${boR.bad.slice(0,3).join(", ")}${boR.bad.length>3?"...":""}`);
+        fBreakout.focus();
+        return;
+      }
+      if(tpMain.bad.length){
+        toast(`止盈 列表包含无效项: ${tpMain.bad.slice(0,3).join(", ")}${tpMain.bad.length>3?"...":""}`);
+        fTp1.focus();
+        return;
+      }
+
+      if(tp2Legacy !== null && !Number.isFinite(tp2Legacy)){
         toast("止盈2 请输入有效数字或留空");
         return;
       }
 
-      // ----- Semantic ordering guards (avoid support/breakout inversion) -----
-      // Expected: stop < support < breakout < tp1 < tp2 (breakout/tp2 optional)
-      if(stop >= support){
-        toast("止损需要低于支撑");
-        if(fStop) fStop.focus();
-        return;
-      }
-      if(tp1 <= support){
-        toast("止盈1 需要高于支撑");
-        if(fTp1) fTp1.focus();
-        return;
-      }
-      if(breakout !== null && breakout <= support){
-        toast("突破需要高于支撑（检测到可能填反）");
-        if(fBreakout) fBreakout.focus();
-        return;
-      }
-      if(breakout !== null && tp1 <= breakout){
-        toast("止盈1 需要高于突破");
-        if(fTp1) fTp1.focus();
-        return;
+      const hasAnyOther = supports.length > 0 || breakouts.length > 0 || tps.length > 0;
+
+      // Rule: If any other levels exist, stop-loss must exist and must be the minimum.
+      if(hasAnyOther){
+        if(stopOpt === null){
+          toast("已填写支撑/突破/止盈时，止损必须填写");
+          fStop.focus();
+          return;
+        }
+        const minOther = Math.min(
+          ...(supports.length ? supports : [Infinity]),
+          ...(breakouts.length ? breakouts : [Infinity]),
+          ...(tps.length ? tps : [Infinity]),
+        );
+        if(Number.isFinite(minOther) && stopOpt >= minOther){
+          toast("止损必须小于所有支撑/突破/止盈价位（止损应为最小值）");
+          fStop.focus();
+          return;
+        }
       }
 
-      if(tp2 !== null && tp2 <= tp1){
-        toast("止盈2 需要大于 止盈1（或留空）");
-        return;
-      }
+      const derivedSupport = supports.length ? supports[supports.length - 1] : null;
+      const derivedBreakout = breakouts.length ? breakouts[0] : null;
+      const derivedTp1 = tps.length ? tps[0] : null;
+      const derivedTp2 = tps.length > 1 ? tps[1] : null;
 
       if(modalMode === "add"){
         const it = {
-          id: crypto.randomUUID(),
+          id: genId(),
           symbol,
           price: NaN,
           prevClose: NaN,
@@ -4241,9 +4493,14 @@ let missing = false;
           avgPrice: NaN,
           volRatio: NaN,
           status: "监控中",
-          updatedAt: "--:--:--",
+          updatedAt: "",
           note,
-          stop, support, breakout, tp1, tp2
+          levels: { support: supports, breakout: breakouts, tp: tps },
+          stop: (stopOpt === null ? null : stopOpt),
+          support: derivedSupport,
+          breakout: derivedBreakout,
+          tp1: derivedTp1,
+          tp2: derivedTp2,
         };
         items.unshift(it);
       }else{
@@ -4251,11 +4508,12 @@ let missing = false;
         if(!it) return;
         it.symbol = symbol;
         it.note = note;
-        it.stop = stop;
-        it.support = support;
-        it.breakout = breakout;
-        it.tp1 = tp1;
-        it.tp2 = tp2;
+        it.levels = { support: supports, breakout: breakouts, tp: tps };
+        it.stop = (stopOpt === null ? null : stopOpt);
+        it.support = derivedSupport;
+        it.breakout = derivedBreakout;
+        it.tp1 = derivedTp1;
+        it.tp2 = derivedTp2;
       }
 
       persist();
@@ -4264,9 +4522,12 @@ let missing = false;
 
       await updateAllPrices();
     });
-
     // ---------- Price update (real) ----------
+    let priceUpdateInFlight = false;
     async function updateAllPrices(){
+      if(priceUpdateInFlight) return;
+      priceUpdateInFlight = true;
+      try{
       if(items.length === 0) return;
 
       const marketCodes = [];
@@ -4321,18 +4582,16 @@ let missing = false;
             if(it.status === "更新失败") it.status = "监控中";
           }else{
             const prevStatus = it.status;
-            if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
-            else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
-            else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-            else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
-            else it.status = "监控中";
+            it.status = computeStatusFromLevels(it);
 
-            // Breakout duration tracking (clears on next day or when falling below breakout)
-            if(it.status === "已突破"){
-              if(prevStatus !== "已突破") ensureBreakoutStart(it.symbol);
+            // Breakout duration tracking (clears on next day or when no longer in breakout status)
+            const isBrokenNow = String(it.status||"").startsWith("已突破");
+            const wasBroken = String(prevStatus||"").startsWith("已突破");
+            if(isBrokenNow){
+              if(!wasBroken) ensureBreakoutStart(it.symbol);
               else ensureBreakoutStart(it.symbol); // ensure exists (e.g., after reload)
             }else{
-              if(prevStatus === "已突破") clearBreakoutStart(it.symbol);
+              if(wasBroken) clearBreakoutStart(it.symbol);
             }
 
             maybeEnqueueThresholdAlerts(it, prevPrice);
@@ -4344,6 +4603,10 @@ let missing = false;
       }catch(e){
         toast(`批量更新失败: ${String(e.message || e)}`);
       }
+      }finally{
+        priceUpdateInFlight = false;
+      }
+
     }
 
     async function updateOnePrice(id){
@@ -4382,11 +4645,18 @@ let missing = false;
           // Call auction: keep previous status to avoid false triggers.
           if(it.status === "更新失败") it.status = "监控中";
         }else{
-          if (Number(it.price) <= Number(it.stop)) it.status = "已止损";
-          else if (Number.isFinite(it.tp2) && Number(it.price) >= Number(it.tp2)) it.status = "已止盈2";
-          else if (Number(it.price) >= Number(it.tp1)) it.status = "已止盈1";
-          else if (Number.isFinite(it.breakout) && Number(it.price) >= Number(it.breakout)) it.status = "已突破";
-          else it.status = "监控中";
+          const prevStatus = it.status;
+          it.status = computeStatusFromLevels(it);
+
+          // Breakout duration tracking (clears on next day or when no longer in breakout status)
+          const isBrokenNow = String(it.status||"").startsWith("已突破");
+          const wasBroken = String(prevStatus||"").startsWith("已突破");
+          if(isBrokenNow){
+            if(!wasBroken) ensureBreakoutStart(it.symbol);
+            else ensureBreakoutStart(it.symbol);
+          }else{
+            if(wasBroken) clearBreakoutStart(it.symbol);
+          }
 
           maybeEnqueueThresholdAlerts(it, prevPrice);
         }
