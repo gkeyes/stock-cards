@@ -1,5 +1,5 @@
 /* Simple App Shell Service Worker */
-const CACHE_NAME = "stock-cards-20260116002meter";
+const CACHE_NAME = "stock-cards-20260116003meter";
 const ASSETS = [
   "./",
   "./index.html",
