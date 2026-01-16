@@ -1071,7 +1071,8 @@ const LS_DASH_COLLAPSED = "stock-cards-dash-collapsed-v1";
           const tr = e.target && e.target.closest ? e.target.closest("tr[data-symbol]") : null;
           if(!tr) return;
           const sym = tr.getAttribute("data-symbol") || "";
-          const id = "card-" + sym;
+          const targetItem = Array.isArray(items) ? items.find(x => String((x && x.symbol) || "").trim() === sym) : null;
+          const id = targetItem ? ("card-" + targetItem.id) : "";
 
           // Prevent interval auto-refresh from re-rendering mid-scroll and stopping early.
           lockAutoRefreshFor(2500);
@@ -1390,7 +1391,7 @@ listEl.innerHTML = "";
 
                 // pct change badge (does not affect layout height: absolutely positioned)
         let chgPct = NaN;
-        if(Number.isFinite(prev) && prev > 0 && Number.isFinite(cur)){
+        if(Number.isFinite(prev) && Math.abs(prev) > 1e-6 && Number.isFinite(cur)){
           chgPct = (cur - prev) / prev * 100;
         }
         let chgClass = "flat";
@@ -1419,7 +1420,8 @@ listEl.innerHTML = "";
         const card = document.createElement("div");
         const cardCollapsed = isCardCollapsed(it.id);
         card.className = "card" + (cardCollapsed ? " collapsed" : "");
-        card.id = "card-" + it.symbol;
+        card.dataset.id = it.id;
+        card.id = "card-" + it.id;
 
         const bigTitle = it.name ? escapeHtml(it.name) : escapeHtml(it.symbol);
         const sub = it.name ? `${escapeHtml(it.symbol)} · ${escapeHtml(it.name)}` : `${escapeHtml(it.symbol)}`;
@@ -1769,7 +1771,7 @@ card.innerHTML = `
     function computeChangeDisplay(prev, cur){
       let chgDisp = "--";
       let chgClass = "flat";
-      if(Number.isFinite(prev) && prev > 0 && Number.isFinite(cur)){
+      if(Number.isFinite(prev) && Math.abs(prev) > 1e-6 && Number.isFinite(cur)){
         const chgPct = (cur - prev) / prev * 100;
         const absPct = Math.abs(chgPct);
 
@@ -2112,33 +2114,49 @@ card.innerHTML = `
           br.style.left = `${dayLeft}%`;
           br.style.width = `${dayWidth}%`;
         }
-const mv = layer.querySelector(".range-move-fill");
-if(mv){
-  const prevSeen = getPrevSeenPrice(it);
-  if(Number.isFinite(prevSeen) && Number.isFinite(cur) && Math.abs(cur - prevSeen) > 1e-8){
-    const dirCls = (cur > prevSeen) ? "up" : "down";
-    const a = Math.min(prevSeen, cur);
-    const b = Math.max(prevSeen, cur);
-    let aX = posX(a);
-    let bX = posX(b);
-    aX = Math.max(dayLeft, Math.min(dayRight, aX));
-    bX = Math.max(dayLeft, Math.min(dayRight, bX));
-    const left = Math.min(aX, bX);
-    const width = Math.abs(bX - aX);
-    if(width >= 0.3){
-      mv.style.display = "block";
-      mv.className = `range-move-fill ${dirCls}`;
-      mv.style.left = `${left}%`;
-      mv.style.width = `${width}%`;
-    }else{
-      mv.style.display = "none";
-    }
-  }else{
-    mv.style.display = "none";
-  }
-}
+        // Ensure move-fill exists (render() may omit it when there is no visible move)
+        let mv = layer.querySelector(".range-move-fill");
+        if(!mv){
+          mv = document.createElement("div");
+          mv.className = "range-move-fill flat";
+          mv.style.display = "none";
+          layer.appendChild(mv);
+        }
 
-        const tick = layer.querySelector(".range-avg-tick");
+        if(mv){
+          const prevSeen = getPrevSeenPrice(it);
+          if(Number.isFinite(prevSeen) && Number.isFinite(cur) && Math.abs(cur - prevSeen) > 1e-8){
+            const dirCls = (cur > prevSeen) ? "up" : "down";
+            const a = Math.min(prevSeen, cur);
+            const b = Math.max(prevSeen, cur);
+            let aX = posX(a);
+            let bX = posX(b);
+            aX = Math.max(dayLeft, Math.min(dayRight, aX));
+            bX = Math.max(dayLeft, Math.min(dayRight, bX));
+            const left = Math.min(aX, bX);
+            const width = Math.abs(bX - aX);
+            if(width >= 0.3){
+              mv.style.display = "block";
+              mv.className = `range-move-fill ${dirCls}`;
+              mv.style.left = `${left}%`;
+              mv.style.width = `${width}%`;
+            }else{
+              mv.style.display = "none";
+            }
+          }else{
+            mv.style.display = "none";
+          }
+        }
+
+        // Ensure avg tick exists (render() may omit it when avgX is not finite at render time)
+        let tick = layer.querySelector(".range-avg-tick");
+        if(!tick){
+          tick = document.createElement("div");
+          tick.className = "range-avg-tick";
+          tick.style.display = "none";
+          layer.appendChild(tick);
+        }
+
         if(tick){
           if(Number.isFinite(avgX)){
             tick.style.display = "block";
@@ -2230,7 +2248,7 @@ if(mv){
     }
 
     function updateCardValues(it){
-      const card = document.getElementById("card-" + it.symbol);
+      const card = document.getElementById("card-" + it.id);
       if(!card) return false;
 
       const prev = Number(it.prevClose);
