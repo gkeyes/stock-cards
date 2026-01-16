@@ -557,6 +557,38 @@ function setLastSeenPrice(it){
   }
 }
 
+// Runtime-only: stabilize open-side classification (hysteresis) for intraday fill overlay (range-move-fill).
+// Shared by symbol so multiple cards of the same stock stay consistent.
+const fillSideBySymbol = Object.create(null); // { [symbol]: { day: 'YYYY-MM-DD', side: 'up'|'down'|'flat' } }
+
+function classifyOpenSide(sym, openRef, cur){
+  const key = String(sym || '').trim();
+  const today = todayYMD();
+  if(!key){
+    return { side: 'flat', eps: 0.01 };
+  }
+  let st = fillSideBySymbol[key];
+  if(!st || st.day !== today){
+    st = { day: today, side: 'flat' };
+    fillSideBySymbol[key] = st;
+  }
+  const o = Number(openRef);
+  const c = Number(cur);
+  const eps = Math.max(Math.abs(o) * 0.0003, 0.01, 1e-6); // 0.03% or 1 fen, whichever larger
+
+  let side = st.side || 'flat';
+  if(Number.isFinite(o) && Number.isFinite(c)){
+    if(c > o + eps) side = 'up';
+    else if(c < o - eps) side = 'down';
+    // else: keep previous side (hysteresis band)
+  }else{
+    side = 'flat';
+  }
+  st.side = side;
+  return { side, eps };
+}
+
+
 
     function minutesOfDay(d = new Date()){
       const x = cstShiftedDate(d);
@@ -1511,20 +1543,51 @@ if(dayRangeOk && Number.isFinite(avgX)){
   avgX = Math.max(dayLeft, Math.min(dayRight, avgX));
 }
 
-const prevSeen = getPrevSeenPrice(it);
 let moveHtml = "";
-if(dayRangeOk && Number.isFinite(prevSeen) && Number.isFinite(cur) && Math.abs(cur - prevSeen) > 1e-8){
-  const dirCls = (cur > prevSeen) ? "up" : "down";
-  const a = Math.min(prevSeen, cur);
-  const b = Math.max(prevSeen, cur);
-  let aX = posX(a);
-  let bX = posX(b);
-  aX = Math.max(dayLeft, Math.min(dayRight, aX));
-  bX = Math.max(dayLeft, Math.min(dayRight, bX));
-  const left = Math.min(aX, bX);
-  const width = Math.abs(bX - aX);
-  if(width >= 0.3){
-    moveHtml = `<div class="range-move-fill ${dirCls}" style="left:${left}%; width:${width}%"></div>`;
+{
+  const fillOpen0 = baselinePriceForDay(it);
+  const fillOpen = Number.isFinite(fillOpen0) ? fillOpen0 : (Number.isFinite(cur) ? cur : NaN);
+  const lowSoFar = Number(it && it.low);
+  const highSoFar = Number(it && it.high);
+  const eps = Math.max(Math.abs(fillOpen) * 0.0003, 0.01, 1e-6);
+
+  const crossed = dayRangeOk
+    && Number.isFinite(fillOpen)
+    && Number.isFinite(lowSoFar)
+    && Number.isFinite(highSoFar)
+    && (lowSoFar < fillOpen - eps)
+    && (highSoFar > fillOpen + eps);
+
+  // Render-time classification: simple hysteresis-less; updateMeter() will keep it stable.
+  let side = "flat";
+  if(Number.isFinite(fillOpen) && Number.isFinite(cur)){
+    if(cur > fillOpen + eps) side = "up";
+    else if(cur < fillOpen - eps) side = "down";
+  }
+
+  if(dayRangeOk && side !== "flat"){
+    let a = NaN, b = NaN;
+    if(!crossed){
+      // Before crossing open: anchor at open.
+      a = (side === "up") ? fillOpen : cur;
+      b = (side === "up") ? cur : fillOpen;
+    }else{
+      // After crossing open: anchor at opposite-side extreme.
+      if(side === "up"){ a = lowSoFar; b = cur; }
+      else{ a = cur; b = highSoFar; }
+    }
+
+    if(Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > 1e-8){
+      let aX = posX(a);
+      let bX = posX(b);
+      aX = Math.max(dayLeft, Math.min(dayRight, aX));
+      bX = Math.max(dayLeft, Math.min(dayRight, bX));
+      const left = Math.min(aX, bX);
+      const width = Math.abs(bX - aX);
+      if(width >= 0.3){
+        moveHtml = `<div class="range-move-fill ${side}" style="left:${left}%; width:${width}%"></div>`;
+      }
+    }
   }
 }
 
@@ -2124,27 +2187,51 @@ card.innerHTML = `
         }
 
         if(mv){
-          const prevSeen = getPrevSeenPrice(it);
-          if(Number.isFinite(prevSeen) && Number.isFinite(cur) && Math.abs(cur - prevSeen) > 1e-8){
-            const dirCls = (cur > prevSeen) ? "up" : "down";
-            const a = Math.min(prevSeen, cur);
-            const b = Math.max(prevSeen, cur);
-            let aX = posX(a);
-            let bX = posX(b);
-            aX = Math.max(dayLeft, Math.min(dayRight, aX));
-            bX = Math.max(dayLeft, Math.min(dayRight, bX));
-            const left = Math.min(aX, bX);
-            const width = Math.abs(bX - aX);
-            if(width >= 0.3){
-              mv.style.display = "block";
-              mv.className = `range-move-fill ${dirCls}`;
-              mv.style.left = `${left}%`;
-              mv.style.width = `${width}%`;
+          const fillOpen0 = baselinePriceForDay(it);
+          const fillOpen = Number.isFinite(fillOpen0) ? fillOpen0 : (Number.isFinite(cur) ? cur : NaN);
+          const lowSoFar = Number(it && it.low);
+          const highSoFar = Number(it && it.high);
+          const { side, eps } = classifyOpenSide(it && it.symbol, fillOpen, cur);
+
+          const crossed = dayRangeOk
+            && Number.isFinite(fillOpen)
+            && Number.isFinite(lowSoFar)
+            && Number.isFinite(highSoFar)
+            && (lowSoFar < fillOpen - eps)
+            && (highSoFar > fillOpen + eps);
+
+          if(side === "flat"){
+            mv.style.display = "none";
+          }else{
+            let a = NaN, b = NaN;
+            if(!crossed){
+              // Before crossing open: anchor at open.
+              a = (side === "up") ? fillOpen : cur;
+              b = (side === "up") ? cur : fillOpen;
+            }else{
+              // After crossing open: anchor at opposite-side extreme.
+              if(side === "up"){ a = lowSoFar; b = cur; }
+              else{ a = cur; b = highSoFar; }
+            }
+
+            if(Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > 1e-8){
+              let aX = posX(a);
+              let bX = posX(b);
+              aX = Math.max(dayLeft, Math.min(dayRight, aX));
+              bX = Math.max(dayLeft, Math.min(dayRight, bX));
+              const left = Math.min(aX, bX);
+              const width = Math.abs(bX - aX);
+              if(width >= 0.3){
+                mv.style.display = "block";
+                mv.className = `range-move-fill ${side}`;
+                mv.style.left = `${left}%`;
+                mv.style.width = `${width}%`;
+              }else{
+                mv.style.display = "none";
+              }
             }else{
               mv.style.display = "none";
             }
-          }else{
-            mv.style.display = "none";
           }
         }
 
